@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Jevdaya</a> &gt; <a href="index.source.html" class="el_package">com.jevdaya.serviceImpl</a> &gt; <span class="el_source">UserServiceImpl.java</span></div><h1>UserServiceImpl.java</h1><pre class="source lang-java linenums">package com.jevdaya.serviceImpl;import java.util.List;
+import java.util.Optional;import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;import com.jevday.util.AESUtil;
+import com.jevdaya.UserDTO;
+import com.jevdaya.Entity.Role;
+import com.jevdaya.Entity.User;
+
+import com.jevdaya.dto.ApiResponse;
+import com.jevdaya.dto.AssignRoleRequestDTO;
+import com.jevdaya.repo.RoleRepository;
+import com.jevdaya.repo.UserRepository;
+import com.jevdaya.service.UserService;
+
+import jakarta.transaction.Transactional;@Service
+<span class="fc" id="L16">public class UserServiceImpl implements UserService {@Autowired</span>
+private UserRepository repo;
+
+@Autowired
+private RoleRepository roleRepository;
+
+@Autowired
+private PasswordEncoder passwordEncoder;
+
+@Transactional
+@Override
+public ApiResponse registerUser(User user) {
+
+    //  NAME VALIDATION
+<span class="fc bfc" id="L30" title="All 4 branches covered.">    if (user.getName() == null || user.getName().isBlank()) {</span>
+<span class="fc" id="L31">        return new ApiResponse(&quot;Name is required&quot;, false);</span>
+    }
+    
+<span class="fc" id="L34">    String name = user.getName().trim();</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">    if (!name.matches(&quot;^[A-Za-z\\s]+$&quot;)) {</span>
+<span class="fc" id="L36">        return new ApiResponse(&quot;Name must contain only alphabets and spaces&quot;, false);</span>
+    }
+<span class="fc bfc" id="L38" title="All 2 branches covered.">    if (name.length() &lt; 2) {</span>
+<span class="fc" id="L39">        return new ApiResponse(&quot;Name must be at least 2 characters long&quot;, false);</span>
+    }
+<span class="fc bfc" id="L41" title="All 2 branches covered.">    if (name.length() &gt; 50) {</span>
+<span class="fc" id="L42">        return new ApiResponse(&quot;Name must not exceed 50 characters&quot;, false);</span>
+    }
+
+    //  EMAIL VALIDATION
+<span class="pc bpc" id="L46" title="1 of 4 branches missed.">    if (user.getEmail() == null || user.getEmail().isBlank()) {</span>
+<span class="fc" id="L47">        return new ApiResponse(&quot;Email is required&quot;, false);</span>
+    }
+
+<span class="fc" id="L50">    String email = user.getEmail().trim();</span>
+<span class="fc bfc" id="L51" title="All 2 branches covered.">    if (!email.matches(&quot;^[A-Za-z0-9+_.-]+@(.+)$&quot;)) {</span>
+<span class="fc" id="L52">        return new ApiResponse(&quot;Invalid email format&quot;, false);</span>
+    }
+<span class="fc bfc" id="L54" title="All 2 branches covered.">    if (email.length() &gt; 100) {</span>
+<span class="fc" id="L55">        return new ApiResponse(&quot;Email must not exceed 100 characters&quot;, false);</span>
+    }
+
+    //  PASSWORD VALIDATION
+<span class="fc" id="L59">    String password = user.getPassword();</span>
+<span class="pc bpc" id="L60" title="1 of 4 branches missed.">    if (password == null || password.isBlank()) {</span>
+<span class="fc" id="L61">        return new ApiResponse(&quot;Password is required&quot;, false);</span>
+    }
+<span class="fc bfc" id="L63" title="All 2 branches covered.">    if (password.length() &lt; 8) {</span>
+<span class="fc" id="L64">        return new ApiResponse(&quot;Password must be at least 8 characters long&quot;, false);</span>
+    }
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">    if (password.length() &gt; 100) {</span>
+<span class="nc" id="L67">        return new ApiResponse(&quot;Password must not exceed 100 characters&quot;, false);</span>
+    }
+<span class="fc bfc" id="L69" title="All 2 branches covered.">    if (!password.matches(&quot;.*[!@#$%^&amp;*()_+\\-=\\[\\]{};':\&quot;\\\\|,.&lt;&gt;/?].*&quot;)) {</span>
+<span class="fc" id="L70">        return new ApiResponse(&quot;Password must contain at least one special character&quot;, false);</span>
+    }
+
+    //  PAN VALIDATION
+<span class="pc bpc" id="L74" title="1 of 4 branches missed.">    if (user.getPanCard() == null || user.getPanCard().isBlank()) {</span>
+<span class="fc" id="L75">        return new ApiResponse(&quot;PAN is required&quot;, false);</span>
+    }
+
+    //  AADHAAR VALIDATION
+<span class="pc bpc" id="L79" title="1 of 4 branches missed.">    if (user.getAadhaarCard() == null || user.getAadhaarCard().isBlank()) {</span>
+<span class="fc" id="L80">        return new ApiResponse(&quot;Aadhaar is required&quot;, false);</span>
+    }
+
+<span class="fc" id="L83">    String pan = user.getPanCard().trim().toUpperCase();</span>
+<span class="fc" id="L84">    String aadhaar = user.getAadhaarCard().trim();</span>
+
+<span class="fc bfc" id="L86" title="All 2 branches covered.">    if (!pan.matches(&quot;[A-Z]{5}[0-9]{4}[A-Z]{1}&quot;)) {</span>
+<span class="fc" id="L87">        return new ApiResponse(&quot;Invalid PAN&quot;, false);</span>
+    }
+
+<span class="fc bfc" id="L90" title="All 2 branches covered.">    if (!aadhaar.matches(&quot;\\d{12}&quot;)) {</span>
+<span class="fc" id="L91">        return new ApiResponse(&quot;Invalid Aadhaar&quot;, false);</span>
+    }
+
+    //  Duplicate email
+<span class="fc bfc" id="L95" title="All 2 branches covered.">    if (repo.existsByEmail(email)) {</span>
+<span class="fc" id="L96">        return new ApiResponse(&quot;Email already exists&quot;, false);</span>
+    }
+
+    //  Encrypt PAN &amp; Aadhaar FIRST (before duplicate check)
+<span class="fc" id="L100">    String encryptedPan = AESUtil.encrypt(pan);</span>
+<span class="fc" id="L101">    String encryptedAadhaar = AESUtil.encrypt(aadhaar);</span>
+
+    //  Efficient Duplicate PAN check (No findAll())
+<span class="fc bfc" id="L104" title="All 2 branches covered.">    if (repo.findByPanCard(encryptedPan).isPresent()) {</span>
+<span class="fc" id="L105">        return new ApiResponse(&quot;PAN already exists&quot;, false);</span>
+    }
+
+    //  Efficient Duplicate Aadhaar check
+<span class="fc bfc" id="L109" title="All 2 branches covered.">    if (repo.findByAadhaarCard(encryptedAadhaar).isPresent()) {</span>
+<span class="fc" id="L110">        return new ApiResponse(&quot;Aadhaar already exists&quot;, false);</span>
+    }
+
+    // Set validated &amp; cleaned values
+<span class="fc" id="L114">    user.setName(name);</span>
+<span class="fc" id="L115">    user.setEmail(email);</span>
+
+    //  Encrypt password
+<span class="fc" id="L118">    user.setPassword(passwordEncoder.encode(password));</span>
+
+    // Set encrypted PAN &amp; Aadhaar
+<span class="fc" id="L121">    user.setPanCard(encryptedPan);</span>
+<span class="fc" id="L122">    user.setAadhaarCard(encryptedAadhaar);</span>
+
+    //  Assign default ROLE_USER (Many-to-Many)
+<span class="fc" id="L125">    Optional&lt;Role&gt; userRoleOpt = roleRepository.findByName(&quot;ROLE_USER&quot;);</span>
+<span class="pc bpc" id="L126" title="1 of 2 branches missed.">    if (userRoleOpt.isPresent()) {</span>
+<span class="fc" id="L127">        user.addRole(userRoleOpt.get());</span>
+    } else {
+        // Fallback (should not happen if DataSeeder ran)
+<span class="nc" id="L130">        System.err.println(&quot;WARNING: ROLE_USER not found in database!&quot;);</span>
+    }
+
+<span class="fc" id="L133">    repo.save(user);</span>
+
+<span class="fc" id="L135">    return new ApiResponse(&quot;User Registered Successfully&quot;, true);</span>
+}
+@Override
+public List&lt;UserDTO&gt; getAllUsers() {
+<span class="fc" id="L139">    return repo.findAll()</span>
+<span class="fc" id="L140">            .stream()</span>
+<span class="fc" id="L141">            .map(u -&gt; new UserDTO(u.getName(), u.getEmail()))</span>
+<span class="fc" id="L142">            .toList();</span>
+}
+}
+// Removed safeDecryptEquals() as it is no longer needed with new approach}
+
+
+
+//        // ✅ PHONE NUMBER VALIDATION (NEW - Replaced PAN &amp; Aadhaar)
+//        if (user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
+//            return new ApiResponse(&quot;Phone number is required&quot;, false);
+//        }
+//
+//        String phone = user.getPhoneNumber().trim();
+//
+//        if (!phone.matches(&quot;^[6-9]\\d{9}$&quot;)) {
+//            return new ApiResponse(&quot;Invalid phone number. Must be 10 digits starting with 6,7,8 or 9&quot;, false);
+//        }
+//
+//        // 🔹 Duplicate phone check
+//        if (repo.existsByPhoneNumber(phone)) {
+//            return new ApiResponse(&quot;Phone number already exists&quot;, false);
+//        }
+//
+//        // Set validated &amp; cleaned values
+//        user.setName(name);
+//        user.setEmail(email);
+//        user.setPhoneNumber(phone);   // Set clean phone number
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Jevdaya</a> &gt; <a href="index.source.html" class="el_package">com.jevdaya.serviceImpl</a> &gt; <span class="el_source">AuthServiceImpl.java</span></div><h1>AuthServiceImpl.java</h1><pre class="source lang-java linenums">package com.jevdaya.serviceImpl;
+
+import com.jevdaya.JwtUtil;
+import com.jevdaya.Entity.Role;
+import com.jevdaya.Entity.User;
+import com.jevdaya.dto.ApiResponse;
+import com.jevdaya.dto.AssignRoleRequestDTO;
+import com.jevdaya.dto.LoginRequestDTO;
+import com.jevdaya.dto.LoginResponseDTO;
+import com.jevdaya.repo.RoleRepository;
+import com.jevdaya.repo.UserRepository;
+import com.jevdaya.service.AuthService;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+<span class="fc" id="L24">public class AuthServiceImpl implements AuthService {</span>
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private RoleRepository roleRepository;
+
+    @Autowired
+    private JwtUtil jwtUtil;               // Injected here
+
+    @Override
+    public LoginResponseDTO login(LoginRequestDTO request) {
+<span class="fc" id="L40">        Optional&lt;User&gt; userOpt = userRepository.findByEmail(request.getEmail());</span>
+
+<span class="fc bfc" id="L42" title="All 2 branches covered.">        if (userOpt.isEmpty()) {</span>
+<span class="fc" id="L43">            return new LoginResponseDTO(&quot;User not found&quot;, null, null, null, null);</span>
+        }
+
+<span class="fc" id="L46">        User user = userOpt.get();</span>
+
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {</span>
+<span class="fc" id="L49">            return new LoginResponseDTO(&quot;Invalid password&quot;, null, null, null, null);</span>
+        }
+
+<span class="fc" id="L52">        String token = jwtUtil.generateToken(user);</span>
+
+<span class="fc" id="L54">        Set&lt;String&gt; roles = user.getRoles().stream()</span>
+<span class="fc" id="L55">                .map(Role::getName)</span>
+<span class="fc" id="L56">                .collect(Collectors.toSet());</span>
+
+<span class="fc" id="L58">        return new LoginResponseDTO(</span>
+                &quot;Login Successful&quot;,
+<span class="fc" id="L60">                user.getEmail(),</span>
+<span class="fc" id="L61">                user.getName(),</span>
+                token,
+                roles
+        );
+    }
+    
+    @Transactional
+    @Override
+    public ApiResponse assignRole(AssignRoleRequestDTO request) {
+        // Your original assignRole code (kept unchanged)
+<span class="pc bpc" id="L71" title="2 of 4 branches missed.">        if (request.getEmail() == null || request.getRoleName() == null || </span>
+<span class="pc bpc" id="L72" title="1 of 4 branches missed.">            request.getEmail().isBlank() || request.getRoleName().isBlank()) {</span>
+<span class="fc" id="L73">            return new ApiResponse(&quot;Email and roleName are required&quot;, false);</span>
+        }
+
+<span class="fc" id="L76">        Optional&lt;User&gt; userOpt = userRepository.findByEmail(request.getEmail().trim());</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        if (userOpt.isEmpty()) {</span>
+<span class="fc" id="L78">            return new ApiResponse(&quot;User not found with email: &quot; + request.getEmail(), false);</span>
+        }
+
+<span class="fc" id="L81">        User user = userOpt.get();</span>
+
+<span class="fc" id="L83">        Optional&lt;Role&gt; roleOpt = roleRepository.findByName(request.getRoleName().trim());</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (roleOpt.isEmpty()) {</span>
+<span class="fc" id="L85">            return new ApiResponse(&quot;Role not found: &quot; + request.getRoleName(), false);</span>
+        }
+
+<span class="fc" id="L88">        Role role = roleOpt.get();</span>
+
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        if (user.getRoles().contains(role)) {</span>
+<span class="fc" id="L91">            return new ApiResponse(&quot;User already has role: &quot; + request.getRoleName(), false);</span>
+        }
+
+<span class="fc" id="L94">        user.addRole(role);</span>
+<span class="fc" id="L95">        userRepository.save(user);</span>
+
+<span class="fc" id="L97">        return new ApiResponse(&quot;Role '&quot; + request.getRoleName() + &quot;' assigned successfully to user&quot;, true);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -11,8 +11,8 @@ import com.jevdaya.Entity.User;
 public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
-
-    boolean existsByPanCard(String panCard);
-    boolean existsByAadhaarCard(String aadhaarCard);
     boolean existsByEmail(String email);
+    Optional<User> findByPanCard(String panCard);
+    Optional<User> findByAadhaarCard(String aadhaarCard);
+//    boolean existsByPhoneNumber(String phoneNumber);
 }

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OtpService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Jevdaya</a> &gt; <a href="index.source.html" class="el_package">com.jevdaya.serviceImpl</a> &gt; <span class="el_source">OtpService.java</span></div><h1>OtpService.java</h1><pre class="source lang-java linenums">package com.jevdaya.serviceImpl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
+
+@Service
+<span class="fc" id="L13">public class OtpService {</span>
+
+    @Autowired
+    private JavaMailSender mailSender;
+
+    // ✅ Store OTP in memory (email → otp)
+    // In real production use Redis, but for learning this is fine
+<span class="fc" id="L20">    private Map&lt;String, String&gt; otpStorage = new HashMap&lt;&gt;();</span>
+
+    // ✅ Generate 6-digit OTP and send to email
+    public void sendOtp(String email) {
+        // Generate random 6-digit OTP
+<span class="nc" id="L25">        String otp = String.valueOf(100000 + new Random().nextInt(900000));</span>
+
+        // Save it (email -&gt; otp)
+<span class="nc" id="L28">        otpStorage.put(email, otp);</span>
+
+        // Send email
+<span class="nc" id="L31">        SimpleMailMessage message = new SimpleMailMessage();</span>
+<span class="nc" id="L32">        message.setTo(email);</span>
+<span class="nc" id="L33">        message.setSubject(&quot;Your OTP for Registration - Jevdaya&quot;);</span>
+<span class="nc" id="L34">        message.setText(&quot;Hello!\n\nYour OTP for registration is: &quot; + otp +</span>
+                        &quot;\n\nThis OTP is valid for 10 minutes.\n\nDo not share this with anyone.\n\nJevdaya Team&quot;);
+
+<span class="nc" id="L37">        mailSender.send(message);</span>
+
+<span class="nc" id="L39">        System.out.println(&quot;OTP sent to: &quot; + email + &quot; | OTP: &quot; + otp); // for testing</span>
+<span class="nc" id="L40">    }</span>
+
+    // ✅ Verify OTP entered by user
+    public boolean verifyOtp(String email, String enteredOtp) {
+<span class="nc" id="L44">        String savedOtp = otpStorage.get(email);</span>
+
+<span class="nc bnc" id="L46" title="All 4 branches missed.">        if (savedOtp != null &amp;&amp; savedOtp.equals(enteredOtp)) {</span>
+<span class="nc" id="L47">            otpStorage.remove(email); // ✅ Remove after use (one-time use)</span>
+<span class="nc" id="L48">            return true;</span>
+        }
+<span class="nc" id="L50">        return false;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
