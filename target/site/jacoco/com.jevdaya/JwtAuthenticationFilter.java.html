@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtAuthenticationFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Jevdaya</a> &gt; <a href="index.source.html" class="el_package">com.jevdaya</a> &gt; <span class="el_source">JwtAuthenticationFilter.java</span></div><h1>JwtAuthenticationFilter.java</h1><pre class="source lang-java linenums">package com.jevdaya;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.List;
+
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtUtil jwtUtil;
+    private final UserDetailsService userDetailsService;
+
+    // List of public endpoints that should NOT require JWT
+<span class="fc" id="L24">    private static final List&lt;String&gt; PUBLIC_ENDPOINTS = List.of(</span>
+            &quot;/auth/login&quot;,
+            &quot;/auth/register&quot;,
+            &quot;/auth/assign-role&quot;,
+            &quot;/api/users/register&quot;,
+            &quot;/api/users/send-otp&quot;,
+            &quot;/api/users/verify-otp-and-register&quot;
+    );
+
+<span class="fc" id="L33">    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {</span>
+<span class="fc" id="L34">        this.jwtUtil = jwtUtil;</span>
+<span class="fc" id="L35">        this.userDetailsService = userDetailsService;</span>
+<span class="fc" id="L36">    }</span>
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, 
+                                    HttpServletResponse response, 
+                                    FilterChain filterChain) throws ServletException, IOException {
+
+<span class="fc" id="L43">        String requestURI = request.getRequestURI();</span>
+
+        // ✅ Skip JWT validation for public endpoints
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        if (isPublicEndpoint(requestURI)) {</span>
+<span class="fc" id="L47">            filterChain.doFilter(request, response);</span>
+<span class="fc" id="L48">            return;</span>
+        }
+
+        // Proceed with JWT validation for protected endpoints
+<span class="fc" id="L52">        String header = request.getHeader(&quot;Authorization&quot;);</span>
+
+<span class="pc bpc" id="L54" title="1 of 4 branches missed.">        if (header != null &amp;&amp; header.startsWith(&quot;Bearer &quot;)) {</span>
+<span class="fc" id="L55">            String token = header.substring(7).trim();</span>
+
+<span class="fc bfc" id="L57" title="All 2 branches covered.">            if (jwtUtil.validateToken(token)) {</span>
+<span class="fc" id="L58">                String email = jwtUtil.extractEmail(token);</span>
+
+                try {
+<span class="fc" id="L61">                    UserDetails userDetails = userDetailsService.loadUserByUsername(email);</span>
+
+<span class="fc" id="L63">                    UsernamePasswordAuthenticationToken authentication =</span>
+<span class="fc" id="L64">                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());</span>
+
+<span class="fc" id="L66">                    SecurityContextHolder.getContext().setAuthentication(authentication);</span>
+<span class="fc" id="L67">                } catch (Exception e) {</span>
+                    // Invalid token - continue without authentication
+<span class="fc" id="L69">                    SecurityContextHolder.clearContext();</span>
+<span class="fc" id="L70">                }</span>
+            }
+        }
+
+<span class="fc" id="L74">        filterChain.doFilter(request, response);</span>
+<span class="fc" id="L75">    }</span>
+
+    // Helper method to check public endpoints
+    private boolean isPublicEndpoint(String uri) {
+<span class="fc" id="L79">        return PUBLIC_ENDPOINTS.stream().anyMatch(uri::startsWith);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
