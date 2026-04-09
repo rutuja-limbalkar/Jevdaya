@@ -20,14 +20,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
 
-    // List of public endpoints that should NOT require JWT
+    // Improved public endpoints list
     private static final List<String> PUBLIC_ENDPOINTS = List.of(
-            "/auth/login",
-            "/auth/register",
-            "/auth/assign-role",
-            "/api/users/register",
-            "/api/users/send-otp",
-            "/api/users/verify-otp-and-register"
+            "/auth/login", "/auth/register", "/auth/assign-role",
+            "/api/users/register", "/gallery/","/upload",
+            "/gaushala", "/api/gaushala"
     );
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
@@ -42,40 +39,56 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String requestURI = request.getRequestURI();
 
-        // ✅ Skip JWT validation for public endpoints
+     // ✅ Allow payment APIs without JWT (TEMPORARY FOR TESTING)
+        if (requestURI.startsWith("/payment")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        // Skip JWT check for all public endpoints
         if (isPublicEndpoint(requestURI)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Proceed with JWT validation for protected endpoints
+        // For protected routes only: check JWT
         String header = request.getHeader("Authorization");
 
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7).trim();
+        if (header == null || !header.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
+        String token = header.substring(7).trim();
+
+        try {
             if (jwtUtil.validateToken(token)) {
                 String email = jwtUtil.extractEmail(token);
+                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-                try {
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                } catch (Exception e) {
-                    // Invalid token - continue without authentication
-                    SecurityContextHolder.clearContext();
-                }
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
+        } catch (Exception e) {
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
     }
 
-    // Helper method to check public endpoints
     private boolean isPublicEndpoint(String uri) {
-        return PUBLIC_ENDPOINTS.stream().anyMatch(uri::startsWith);
+        if (uri == null) return false;
+
+        return PUBLIC_ENDPOINTS.stream().anyMatch(publicPath ->
+                uri.equals(publicPath) || uri.startsWith(publicPath + "/")
+        ) ||
+               uri.startsWith("/auth/") ||
+               uri.startsWith("/api/users/") ||
+               uri.startsWith("/gaushala/") ||
+               uri.startsWith("/gallery/")||
+               uri.startsWith("/api/gaushala/");
+               
+              
     }
 }

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Jevdaya</a> &gt; <a href="index.source.html" class="el_package">com.jevdaya</a> &gt; <span class="el_source">SecurityConfig.java</span></div><h1>SecurityConfig.java</h1><pre class="source lang-java linenums">package com.jevdaya;
 
-import com.jevdaya.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,57 +22,72 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     public SecurityConfig(UserDetailsService userDetailsService, 
-<span class="fc" id="L26">                          JwtAuthenticationFilter jwtAuthenticationFilter) {</span>
-<span class="fc" id="L27">        this.userDetailsService = userDetailsService;</span>
-<span class="fc" id="L28">        this.jwtAuthenticationFilter = jwtAuthenticationFilter;</span>
-<span class="fc" id="L29">    }</span>
+<span class="fc" id="L25">                          JwtAuthenticationFilter jwtAuthenticationFilter) {</span>
+<span class="fc" id="L26">        this.userDetailsService = userDetailsService;</span>
+<span class="fc" id="L27">        this.jwtAuthenticationFilter = jwtAuthenticationFilter;</span>
+<span class="fc" id="L28">    }</span>
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
-<span class="fc" id="L33">        http</span>
-<span class="fc" id="L34">            .cors(cors -&gt; cors.configurationSource(corsConfigurationSource))</span>
-<span class="fc" id="L35">            .csrf(csrf -&gt; csrf.disable())</span>
-<span class="fc" id="L36">            .sessionManagement(session -&gt; session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))</span>
+<span class="fc" id="L32">        http</span>
+<span class="fc" id="L33">            .cors(cors -&gt; cors.configurationSource(corsConfigurationSource))</span>
+<span class="fc" id="L34">            .csrf(csrf -&gt; csrf.disable())                    // Important for React frontend</span>
+<span class="fc" id="L35">            .sessionManagement(session -&gt; session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))</span>
             
-<span class="fc" id="L38">            .authorizeHttpRequests(auth -&gt; auth</span>
-                // Public POST endpoints
-<span class="fc" id="L40">                .requestMatchers(HttpMethod.POST,</span>
-                    &quot;/auth/login&quot;,
-                    &quot;/auth/register&quot;,
-                    &quot;/auth/assign-role&quot;,
-                    &quot;/api/users/register&quot;
-<span class="fc" id="L45">                ).permitAll()</span>
+<span class="fc" id="L37">            .authorizeHttpRequests(auth -&gt; auth</span>
+                // Public endpoints - no authentication needed
+<span class="fc" id="L39">            		 .requestMatchers(HttpMethod.POST,</span>
+            			        &quot;/auth/login&quot;, &quot;/auth/register&quot;, &quot;/auth/assign-role&quot;,
+            			        &quot;/api/users/register&quot;, &quot;/gaushala&quot;, &quot;/api/gaushala&quot;,
+            			        &quot;/udesh/**&quot;, &quot;/api/udesh/**&quot;,
+            			        &quot;/api/contact&quot;, &quot;/contact&quot;, &quot;/api/contact/save&quot;, 
+            			        &quot;/api/contact/**&quot;          // ← This is important
+<span class="fc" id="L45">            			    ).permitAll()</span>
 
-                // Public GET endpoints
-<span class="fc" id="L48">                .requestMatchers(HttpMethod.GET, &quot;/api/users/**&quot;, &quot;/api/contact/**&quot;).permitAll()</span>
 
-                // CORS preflight
-<span class="fc" id="L51">                .requestMatchers(HttpMethod.OPTIONS, &quot;/**&quot;).permitAll()</span>
+<span class="fc" id="L48">            		 .requestMatchers(HttpMethod.GET,</span>
+            			        &quot;/gallery/**&quot;, &quot;/contact/**&quot;, &quot;/gaushala/**&quot;,
+            			        &quot;/api/gaushala/**&quot;, &quot;/udesh/**&quot;, &quot;/api/udesh/**&quot;,
+            			        &quot;/api/contact/**&quot;          // ← Add this too
+<span class="fc" id="L52">            			    ).permitAll()</span>
 
-                // Everything else requires authentication
-<span class="fc" id="L54">                .anyRequest().authenticated()</span>
+<span class="fc" id="L54">            			    .requestMatchers(HttpMethod.PUT, &quot;/api/contact/content&quot;).permitAll()   // Important for update</span>
+<span class="fc" id="L55">            			    .requestMatchers(HttpMethod.DELETE, &quot;/api/contact/**&quot;).permitAll()</span>
+
+
+<span class="fc" id="L58">                .requestMatchers(HttpMethod.PUT, &quot;/gaushala/**&quot;, &quot;/api/gaushala/**&quot;).permitAll()</span>
+<span class="fc" id="L59">                .requestMatchers(HttpMethod.DELETE, &quot;/gaushala/**&quot;, &quot;/api/gaushala/**&quot;).permitAll()</span>
+
+<span class="fc" id="L61">                .requestMatchers(HttpMethod.PUT, &quot;/udesh/**&quot;, &quot;/udesh/**&quot;).permitAll()</span>
+<span class="fc" id="L62">                .requestMatchers(HttpMethod.DELETE, &quot;/udesh/**&quot;).permitAll()</span>
+                
+<span class="fc" id="L64">                .requestMatchers(HttpMethod.OPTIONS, &quot;/**&quot;).permitAll()</span>
+<span class="fc" id="L65">                .requestMatchers(&quot;/error&quot;).permitAll()           // Important</span>
+
+                // Everything else requires JWT
+<span class="fc" id="L68">                .anyRequest().authenticated()</span>
             )
-<span class="fc" id="L56">            .authenticationProvider(authenticationProvider())</span>
-<span class="fc" id="L57">            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);</span>
+<span class="fc" id="L70">            .authenticationProvider(authenticationProvider())</span>
+<span class="fc" id="L71">            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);</span>
 
-<span class="fc" id="L59">        return http.build();</span>
+<span class="fc" id="L73">        return http.build();</span>
     }
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-<span class="fc" id="L64">        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);</span>
-<span class="fc" id="L65">        authProvider.setPasswordEncoder(passwordEncoder());</span>
-<span class="fc" id="L66">        return authProvider;</span>
+<span class="fc" id="L78">        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);</span>
+<span class="fc" id="L79">        authProvider.setPasswordEncoder(passwordEncoder());</span>
+<span class="fc" id="L80">        return authProvider;</span>
     }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-<span class="fc" id="L71">        return config.getAuthenticationManager();</span>
+<span class="fc" id="L85">        return config.getAuthenticationManager();</span>
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-<span class="fc" id="L76">        return new BCryptPasswordEncoder();</span>
+<span class="fc" id="L90">        return new BCryptPasswordEncoder();</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
