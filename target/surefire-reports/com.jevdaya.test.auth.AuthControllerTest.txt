@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.jevdaya.test.auth.AuthControllerTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.461 s -- in com.jevdaya.test.auth.AuthControllerTest

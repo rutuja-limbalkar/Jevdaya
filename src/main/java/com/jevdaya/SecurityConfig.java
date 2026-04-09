@@ -1,6 +1,5 @@
 package com.jevdaya;
 
-import com.jevdaya.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -32,25 +31,43 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
-            .csrf(csrf -> csrf.disable())
+            .csrf(csrf -> csrf.disable())                    // Important for React frontend
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             
             .authorizeHttpRequests(auth -> auth
-                // Public POST endpoints
-                .requestMatchers(HttpMethod.POST,
-                    "/auth/login",
-                    "/auth/register",
-                    "/auth/assign-role",
-                    "/api/users/register"
-                ).permitAll()
+            		
+            		// Inside filterChain method
+            		.requestMatchers(HttpMethod.POST, "/gallery/**").permitAll() // Add this if saving is public
+            		.requestMatchers(HttpMethod.GET, "/gallery/**").permitAll()
+            		
+            		.requestMatchers("/payment/**").permitAll()  
+                // Public endpoints - no authentication needed
+            		 .requestMatchers(HttpMethod.POST,
+            			        "/auth/login", "/auth/register", "/auth/assign-role",
+            			        "/api/users/register", "/gaushala", "/api/gaushala"
+            			        
+            
+            			    ).permitAll()
 
-                // Public GET endpoints
-                .requestMatchers(HttpMethod.GET, "/api/users/**", "/api/contact/**").permitAll()
 
-                // CORS preflight
+            		 .requestMatchers(HttpMethod.GET,
+            				 "/gallery/**",
+            			        "/gaushala/**",
+            			        "/api/gaushala/**"
+            			            
+            			    ).permitAll()
+
+         
+
+                .requestMatchers(HttpMethod.PUT, "/gaushala/**", "/api/gaushala/**").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/gaushala/**", "/api/gaushala/**").permitAll()
+
+
+                
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/error").permitAll()           // Important
 
-                // Everything else requires authentication
+                // Everything else requires JWT
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())

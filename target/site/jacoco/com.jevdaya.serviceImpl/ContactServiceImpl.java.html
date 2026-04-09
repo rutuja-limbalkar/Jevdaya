@@ -6,15 +6,81 @@ import com.jevdaya.service.ContactService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 @Service
-<span class="fc" id="L10">public class ContactServiceImpl implements ContactService {</span>
+<span class="fc" id="L14">public class ContactServiceImpl implements ContactService {</span>
 
     @Autowired
     private ContactRepository contactRepository;
 
+<span class="fc" id="L19">    private String pageTitle = &quot;Contact Us&quot;;</span>
+<span class="fc" id="L20">    private String pageSubTitle = &quot;We'd love to hear from you&quot;;</span>
+<span class="fc" id="L21">    private String pageDescription = &quot;&lt;p&gt;Feel free to reach out for any queries or support.&lt;/p&gt;&quot;;</span>
     @Override
     public Contact saveMessage(Contact contact) {
-<span class="fc" id="L17">        return contactRepository.save(contact);</span>
+<span class="nc" id="L24">        return contactRepository.save(contact);</span>
     }
+
+    @Override
+    public List&lt;Contact&gt; getAllMessages() {
+<span class="nc" id="L29">        return contactRepository.findAll();</span>
+    }
+
+    @Override
+    public Contact getMessageById(Long id) {
+<span class="nc" id="L34">        Optional&lt;Contact&gt; contact = contactRepository.findById(id);</span>
+<span class="nc" id="L35">        return contact.orElse(null);</span>
+    }
+
+    @Override
+    public Contact updateMessage(Long id, Contact updatedContact) {
+<span class="nc" id="L40">        Optional&lt;Contact&gt; existingOpt = contactRepository.findById(id);</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (existingOpt.isPresent()) {</span>
+<span class="nc" id="L42">            Contact existing = existingOpt.get();</span>
+<span class="nc" id="L43">            existing.setName(updatedContact.getName());</span>
+<span class="nc" id="L44">            existing.setEmail(updatedContact.getEmail());</span>
+<span class="nc" id="L45">            existing.setSubject(updatedContact.getSubject());</span>
+<span class="nc" id="L46">            existing.setMessage(updatedContact.getMessage());</span>
+            // Add more fields if you have (e.g., phone, createdAt etc.)
+<span class="nc" id="L48">            return contactRepository.save(existing);</span>
+        }
+<span class="nc" id="L50">        return null;</span>
+    }
+
+    @Override
+    public boolean deleteMessage(Long id) {
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (contactRepository.existsById(id)) {</span>
+<span class="nc" id="L56">            contactRepository.deleteById(id);</span>
+<span class="nc" id="L57">            return true;</span>
+        }
+<span class="nc" id="L59">        return false;</span>
+    }
+    
+
+    @Override
+    public Map&lt;String, String&gt; getPageContent() {
+<span class="nc" id="L65">        return Map.of(</span>
+            &quot;title&quot;, pageTitle,
+            &quot;subTitle&quot;, pageSubTitle,
+            &quot;description&quot;, pageDescription
+        );
+    }
+
+    @Override
+    public void updatePageContent(String title, String subTitle, String description) {
+<span class="nc bnc" id="L74" title="All 4 branches missed.">        if (title != null &amp;&amp; !title.trim().isEmpty()) {</span>
+<span class="nc" id="L75">            this.pageTitle = title;</span>
+        }
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        if (subTitle != null) {</span>
+<span class="nc" id="L78">            this.pageSubTitle = subTitle;</span>
+        }
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (description != null) {</span>
+<span class="nc" id="L81">            this.pageDescription = description;</span>
+        }
+<span class="nc" id="L83">        System.out.println(&quot;Page content updated - Title: &quot; + pageTitle); // for debugging</span>
+<span class="nc" id="L84">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

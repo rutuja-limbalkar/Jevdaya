@@ -63,8 +63,8 @@ public ApiResponse registerUser(User user) {
 <span class="fc bfc" id="L63" title="All 2 branches covered.">    if (password.length() &lt; 8) {</span>
 <span class="fc" id="L64">        return new ApiResponse(&quot;Password must be at least 8 characters long&quot;, false);</span>
     }
-<span class="pc bpc" id="L66" title="1 of 2 branches missed.">    if (password.length() &gt; 100) {</span>
-<span class="nc" id="L67">        return new ApiResponse(&quot;Password must not exceed 100 characters&quot;, false);</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">    if (password.length() &gt; 100) {</span>
+<span class="fc" id="L67">        return new ApiResponse(&quot;Password must not exceed 100 characters&quot;, false);</span>
     }
 <span class="fc bfc" id="L69" title="All 2 branches covered.">    if (!password.matches(&quot;.*[!@#$%^&amp;*()_+\\-=\\[\\]{};':\&quot;\\\\|,.&lt;&gt;/?].*&quot;)) {</span>
 <span class="fc" id="L70">        return new ApiResponse(&quot;Password must contain at least one special character&quot;, false);</span>
@@ -76,7 +76,7 @@ public ApiResponse registerUser(User user) {
     }
 
     //  AADHAAR VALIDATION
-<span class="pc bpc" id="L79" title="1 of 4 branches missed.">    if (user.getAadhaarCard() == null || user.getAadhaarCard().isBlank()) {</span>
+<span class="fc bfc" id="L79" title="All 4 branches covered.">    if (user.getAadhaarCard() == null || user.getAadhaarCard().isBlank()) {</span>
 <span class="fc" id="L80">        return new ApiResponse(&quot;Aadhaar is required&quot;, false);</span>
     }
 
@@ -123,11 +123,11 @@ public ApiResponse registerUser(User user) {
 
     //  Assign default ROLE_USER (Many-to-Many)
 <span class="fc" id="L125">    Optional&lt;Role&gt; userRoleOpt = roleRepository.findByName(&quot;ROLE_USER&quot;);</span>
-<span class="pc bpc" id="L126" title="1 of 2 branches missed.">    if (userRoleOpt.isPresent()) {</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">    if (userRoleOpt.isPresent()) {</span>
 <span class="fc" id="L127">        user.addRole(userRoleOpt.get());</span>
     } else {
         // Fallback (should not happen if DataSeeder ran)
-<span class="nc" id="L130">        System.err.println(&quot;WARNING: ROLE_USER not found in database!&quot;);</span>
+<span class="fc" id="L130">        System.err.println(&quot;WARNING: ROLE_USER not found in database!&quot;);</span>
     }
 
 <span class="fc" id="L133">    repo.save(user);</span>

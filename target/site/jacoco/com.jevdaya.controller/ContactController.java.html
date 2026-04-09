@@ -3,20 +3,55 @@
 import com.jevdaya.Entity.Contact;
 import com.jevdaya.service.ContactService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping(&quot;/api/contact&quot;)
-@CrossOrigin(origins = &quot;*&quot;) // allow frontend
-<span class="fc" id="L11">public class ContactController {</span>
+@CrossOrigin(origins = &quot;*&quot;)
+<span class="fc" id="L15">public class ContactController {</span>
 
     @Autowired
     private ContactService contactService;
 
+    // ==================== CONTACT MESSAGES CRUD ====================
+
     @PostMapping(&quot;/save&quot;)
     public String saveContact(@RequestBody Contact contact) {
-<span class="nc" id="L18">        contactService.saveMessage(contact);</span>
-<span class="nc" id="L19">        return &quot;Message saved successfully&quot;;</span>
+<span class="nc" id="L24">        contactService.saveMessage(contact);</span>
+<span class="nc" id="L25">        return &quot;Message saved successfully&quot;;</span>
+    }
+
+    @GetMapping(&quot;/all&quot;)
+    public List&lt;Contact&gt; getAllContacts() {
+<span class="nc" id="L30">        return contactService.getAllMessages();</span>
+    }
+
+    @DeleteMapping(&quot;/{id}&quot;)
+    public ResponseEntity&lt;String&gt; deleteContact(@PathVariable Long id) {
+<span class="nc" id="L35">        boolean deleted = contactService.deleteMessage(id);</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        return deleted ? ResponseEntity.ok(&quot;Contact deleted successfully&quot;) </span>
+<span class="nc" id="L37">                       : ResponseEntity.notFound().build();</span>
+    }
+
+    // ==================== CONTACT PAGE CONTENT (Title + Subtitle + Description) ====================
+
+    @GetMapping(&quot;/content&quot;)
+    public Map&lt;String, String&gt; getPageContent() {
+<span class="nc" id="L44">        return contactService.getPageContent();</span>
+    }
+
+    @PutMapping(&quot;/content&quot;)
+    public String updatePageContent(@RequestBody Map&lt;String, String&gt; data) {
+<span class="nc" id="L49">        contactService.updatePageContent(</span>
+<span class="nc" id="L50">            data.get(&quot;title&quot;),</span>
+<span class="nc" id="L51">            data.get(&quot;subTitle&quot;),</span>
+<span class="nc" id="L52">            data.get(&quot;description&quot;)</span>
+        );
+<span class="nc" id="L54">        return &quot;Page content updated successfully&quot;;</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
