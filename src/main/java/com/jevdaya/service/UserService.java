@@ -13,6 +13,6 @@ public interface UserService {
 	ApiResponse registerUser(User user);
 
     List<UserDTO> getAllUsers();
-    
+    public ApiResponse assignRole(AssignRoleRequestDTO request);
     
 }

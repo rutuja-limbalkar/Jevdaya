@@ -5,44 +5,49 @@ import com.jevdaya.repo.RoleRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Map;
 
 @Component
 public class RoleSeeder implements CommandLineRunner {
 
     private final RoleRepository roleRepository;
 
-<span class="fc" id="L14">    public RoleSeeder(RoleRepository roleRepository) {</span>
-<span class="fc" id="L15">        this.roleRepository = roleRepository;</span>
-<span class="fc" id="L16">    }</span>
+<span class="fc" id="L15">    public RoleSeeder(RoleRepository roleRepository) {</span>
+<span class="fc" id="L16">        this.roleRepository = roleRepository;</span>
+<span class="fc" id="L17">    }</span>
 
     @Override
     @Transactional
     public void run(String... args) {
-<span class="fc" id="L21">        System.out.println(&quot;🚀 Starting Role Seeding...&quot;);</span>
+<span class="fc" id="L22">        System.out.println(&quot;🚀 Starting Role Seeding...&quot;);</span>
 
-        // Create ROLE_USER if not exists
-<span class="fc bfc" id="L24" title="All 2 branches covered.">        if (roleRepository.findByName(&quot;ROLE_USER&quot;).isEmpty()) {</span>
-<span class="fc" id="L25">            Role userRole = new Role();</span>
-<span class="fc" id="L26">            userRole.setName(&quot;ROLE_USER&quot;);</span>
-<span class="fc" id="L27">            userRole.setDescription(&quot;Regular User with basic access&quot;);</span>
-<span class="fc" id="L28">            roleRepository.save(userRole);</span>
-<span class="fc" id="L29">            System.out.println(&quot;✅ ROLE_USER created&quot;);</span>
-<span class="fc" id="L30">        } else {</span>
-<span class="fc" id="L31">            System.out.println(&quot;ℹ️ ROLE_USER already exists&quot;);</span>
-        }
+        // Define roles in a way that is easy to manage
+<span class="fc" id="L25">        Map&lt;String, String&gt; rolesToSeed = Map.of(</span>
+            &quot;ROLE_USER&quot;, &quot;Regular User with basic access&quot;,
+            &quot;ROLE_ADMIN&quot;, &quot;Administrator with full access&quot;
+            // Note: If your test only expects 2 roles for &quot;shouldCreateRolesIfNotExist&quot;,
+            // but you have 3 here, the test will always fail.
+        );
 
-        // Create ROLE_ADMIN if not exists
-<span class="fc bfc" id="L35" title="All 2 branches covered.">        if (roleRepository.findByName(&quot;ROLE_ADMIN&quot;).isEmpty()) {</span>
-<span class="fc" id="L36">            Role adminRole = new Role();</span>
-<span class="fc" id="L37">            adminRole.setName(&quot;ROLE_ADMIN&quot;);</span>
-<span class="fc" id="L38">            adminRole.setDescription(&quot;Administrator with full access&quot;);</span>
-<span class="fc" id="L39">            roleRepository.save(adminRole);</span>
-<span class="fc" id="L40">            System.out.println(&quot;✅ ROLE_ADMIN created&quot;);</span>
-<span class="fc" id="L41">        } else {</span>
-<span class="fc" id="L42">            System.out.println(&quot;ℹ️ ROLE_ADMIN already exists&quot;);</span>
-        }
+<span class="fc" id="L32">        rolesToSeed.forEach(this::createRoleIfNotExists);</span>
 
-<span class="fc" id="L45">        System.out.println(&quot;✅ Role Seeding Completed!&quot;);</span>
-<span class="fc" id="L46">    }</span>
+<span class="fc" id="L34">        System.out.println(&quot;✅ Role Seeding Completed!&quot;);</span>
+<span class="fc" id="L35">    }</span>
+
+    private void createRoleIfNotExists(String roleName, String description) {
+        // The Mockito error &quot;NeverWantedButInvoked&quot; happens because 
+        // findByName(roleName) is likely returning Empty in your test setup
+        // for a role the test didn't account for.
+<span class="fc" id="L41">        roleRepository.findByName(roleName).ifPresentOrElse(</span>
+<span class="fc" id="L42">            role -&gt; System.out.println(&quot;ℹ️ &quot; + roleName + &quot; already exists&quot;),</span>
+            () -&gt; {
+<span class="fc" id="L44">                Role role = new Role();</span>
+<span class="fc" id="L45">                role.setName(roleName);</span>
+<span class="fc" id="L46">                role.setDescription(description);</span>
+<span class="fc" id="L47">                roleRepository.save(role);</span>
+<span class="fc" id="L48">                System.out.println(&quot;✅ &quot; + roleName + &quot; created&quot;);</span>
+<span class="fc" id="L49">            }</span>
+        );
+<span class="fc" id="L51">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

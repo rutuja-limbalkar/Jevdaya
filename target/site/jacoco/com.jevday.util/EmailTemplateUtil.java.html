@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EmailTemplateUtil.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Jevdaya</a> &gt; <a href="index.source.html" class="el_package">com.jevday.util</a> &gt; <span class="el_source">EmailTemplateUtil.java</span></div><h1>EmailTemplateUtil.java</h1><pre class="source lang-java linenums">package com.jevday.util;
+
+import com.jevdaya.Entity.Donation;
+import java.time.format.DateTimeFormatter;
+
+<span class="nc" id="L6">public class EmailTemplateUtil {</span>
+
+    public static String getReceiptHtml(Donation donation) {
+<span class="fc" id="L9">        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(&quot;yyyy-MM-dd&quot;);</span>
+<span class="pc bpc" id="L10" title="1 of 2 branches missed.">        String dateStr = donation.getPaymentDate() != null ? donation.getPaymentDate().format(formatter) : &quot;N/A&quot;;</span>
+        
+<span class="fc" id="L12">        return &quot;&lt;!DOCTYPE html&gt;&quot; +</span>
+            &quot;&lt;html&gt;&quot; +
+            &quot;&lt;head&gt;&quot; +
+            &quot;    &lt;meta charset='UTF-8'&gt;&quot; +
+            &quot;    &lt;meta name='viewport' content='width=device-width, initial-scale=1.0'&gt;&quot; +
+            &quot;    &lt;title&gt;Jeevdaya Donation Receipt&lt;/title&gt;&quot; +
+            &quot;    &lt;style&gt;&quot; +
+            &quot;        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }&quot; +
+            &quot;        .receipt { max-width: 800px; margin: 0 auto; background: white; border: 1px solid #ddd; padding: 30px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }&quot; +
+            &quot;        .text-center { text-align: center; }&quot; +
+            &quot;        .red { color: #ff0000; }&quot; +
+            &quot;        .red-bold { color: #ff0000; font-weight: bold; }&quot; +
+            &quot;        .title { font-size: 28px; font-weight: bold; margin-bottom: 15px; }&quot; +
+            &quot;        .address { font-size: 14px; font-weight: bold; margin: 5px 0; }&quot; +
+            &quot;        .register-info { font-size: 12px; margin: 5px 0; }&quot; +
+            &quot;        .reg-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 10px; }&quot; +
+            &quot;        .reg-table td { border: 1px solid black; padding: 8px; text-align: center; vertical-align: top; }&quot; +
+            &quot;        .meta { margin: 15px 0 5px 0; }&quot; +
+            &quot;        .separator { border-top: 1px solid black; margin: 10px 0; }&quot; +
+            &quot;        .info-row { margin: 12px 0; font-size: 14px; }&quot; +
+            &quot;        .amount-box { text-align: center; margin: 30px 0; }&quot; +
+            &quot;        .amount-table { margin: 0 auto; border-collapse: collapse; }&quot; +
+            &quot;        .amount-table td { border: 1px solid black; padding: 10px 40px; font-size: 20px; font-weight: bold; }&quot; +
+            &quot;        .amount-table td:first-child { color: #ff0000; }&quot; +
+            &quot;        .footer { text-align: center; color: #ff0000; font-weight: bold; margin-top: 20px; }&quot; +
+            &quot;        @media (max-width: 600px) { .receipt { padding: 15px; } .amount-table td { padding: 8px 20px; font-size: 16px; } }&quot; +
+            &quot;    &lt;/style&gt;&quot; +
+            &quot;&lt;/head&gt;&quot; +
+            &quot;&lt;body&gt;&quot; +
+            &quot;    &lt;div class='receipt'&gt;&quot; +
+            &quot;        &lt;div class='text-center'&gt;&quot; +
+            &quot;            &lt;div class='title red'&gt;Payment Receipt&lt;/div&gt;&quot; +
+            &quot;            &lt;div class='address red'&gt;बीतराग, सेक. २४, प्लाट नंबर ६, निगडी प्राधिकरण, निगडी, पुणे - ४११०४४&lt;/div&gt;&quot; +
+            &quot;            &lt;div class='register-info'&gt;रजिस्टर नंबर : महा. ३७०/२०१४/पुणे @ visit us on: www.jeevdaya.net&lt;/div&gt;&quot; +
+            &quot;        &lt;/div&gt;&quot; +
+            &quot;        &lt;table class='reg-table'&gt;&quot; +
+            &quot;            &lt;tr&gt;&quot; +
+            &quot;                &lt;td&gt;आयकर अधिनियम कि धारा 80G के अंतर्गत रजिस्टर्ड&lt;/td&gt;&quot; +
+            &quot;                &lt;td&gt;DI No. AAA TS 1209 HE 2021901&lt;br&gt;UR No. AAA TS 1209 HE 202191&lt;/td&gt;&quot; +
+            &quot;                &lt;td&gt;DI No. AAA TS 1209 HF 2021701&lt;br&gt;UR No. AAA TS 1209 HF 202171&lt;/td&gt;&quot; +
+            &quot;            &lt;/tr&gt;&quot; +
+            &quot;        &lt;/table&gt;&quot; +
+            &quot;        &lt;div class='meta'&gt;&quot; +
+<span class="fc" id="L55">            &quot;            &lt;span class='red-bold'&gt;Receipt no:&lt;/span&gt; &lt;strong&gt;JIV&quot; + donation.getId() + &quot;&lt;/strong&gt;&quot; +</span>
+            &quot;            &lt;span style='float: right;'&gt;&lt;span class='red-bold'&gt;Date:&lt;/span&gt; &lt;strong&gt;&quot; + dateStr + &quot;&lt;/strong&gt;&lt;/span&gt;&quot; +
+            &quot;        &lt;/div&gt;&quot; +
+            &quot;        &lt;div style='clear: both;'&gt;&lt;/div&gt;&quot; +
+            &quot;        &lt;div class='separator'&gt;&lt;/div&gt;&quot; +
+<span class="pc bpc" id="L60" title="1 of 2 branches missed.">            &quot;        &lt;div class='info-row'&gt;&lt;span class='red-bold'&gt;Received with thanks from:&lt;/span&gt; &quot; + (donation.getName() != null ? donation.getName() : &quot;N/A&quot;) + &quot;&lt;/div&gt;&quot; +</span>
+            &quot;        &lt;div class='info-row'&gt;&quot; +
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">            &quot;            &lt;span class='red-bold'&gt;Address:&lt;/span&gt; &quot; + (donation.getAddress() != null ? donation.getAddress() : &quot;N/A&quot;) +</span>
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">            &quot;            &lt;span style='float: right;'&gt;&lt;span class='red-bold'&gt;Cell:&lt;/span&gt; &quot; + (donation.getMobile() != null ? donation.getMobile() : &quot;N/A&quot;) + &quot;&lt;/span&gt;&quot; +</span>
+            &quot;        &lt;/div&gt;&quot; +
+            &quot;        &lt;div style='clear: both;'&gt;&lt;/div&gt;&quot; +
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">            &quot;        &lt;div class='info-row'&gt;&lt;span class='red-bold'&gt;the sum of Rupees:&lt;/span&gt; &quot; + (donation.getDonationAmount() != null ? donation.getDonationAmount() + &quot; Only&quot; : &quot;0 Only&quot;) + &quot;&lt;/div&gt;&quot; +</span>
+            &quot;        &lt;div class='info-row'&gt;&quot; +
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">            &quot;            &lt;span class='red-bold'&gt;by:&lt;/span&gt; &quot; + (donation.getPaymentMode() != null ? donation.getPaymentMode() : &quot;N/A&quot;) +</span>
+<span class="pc bpc" id="L69" title="2 of 4 branches missed.">            &quot;            &lt;span class='red-bold' style='margin-left: 15px;'&gt;Txn. No.:&lt;/span&gt; &quot; + (donation.getPaymentId() != null ? donation.getPaymentId() : (donation.getReferenceNumber() != null ? donation.getReferenceNumber() : &quot;N/A&quot;)) +</span>
+            &quot;            &lt;span style='float: right;'&gt;&lt;span class='red-bold'&gt;dated:&lt;/span&gt; &quot; + dateStr + &quot;&lt;/span&gt;&quot; +
+            &quot;        &lt;/div&gt;&quot; +
+            &quot;        &lt;div style='clear: both;'&gt;&lt;/div&gt;&quot; +
+            &quot;        &lt;div class='amount-box'&gt;&quot; +
+            &quot;            &lt;table class='amount-table'&gt;&quot; +
+            &quot;                &lt;tr&gt;&quot; +
+            &quot;                    &lt;td&gt;₹:&lt;/td&gt;&quot; +
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">            &quot;                    &lt;td&gt;&quot; + (donation.getDonationAmount() != null ? donation.getDonationAmount() : &quot;0&quot;) + &quot;&lt;/td&gt;&quot; +</span>
+            &quot;                &lt;/tr&gt;&quot; +
+            &quot;            &lt;/table&gt;&quot; +
+            &quot;        &lt;/div&gt;&quot; +
+            &quot;        &lt;div class='footer'&gt;Payment Receipt.&lt;/div&gt;&quot; +
+            &quot;    &lt;/div&gt;&quot; +
+            &quot;&lt;/body&gt;&quot; +
+            &quot;&lt;/html&gt;&quot;;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
