@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DonationServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Jevdaya</a> &gt; <a href="index.source.html" class="el_package">com.jevdaya.serviceImpl</a> &gt; <span class="el_source">DonationServiceImpl.java</span></div><h1>DonationServiceImpl.java</h1><pre class="source lang-java linenums">package com.jevdaya.serviceImpl;
+
+import com.itextpdf.text.BaseColor;
+import com.itextpdf.text.Chunk;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.Element;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.FontFactory;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.Phrase;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
+import com.jevday.util.AESUtil;
+import com.jevday.util.EmailTemplateUtil;
+import com.jevdaya.Entity.Donation;
+import com.jevdaya.repo.DonationRepository;
+import com.jevdaya.service.DonationService;
+import jakarta.mail.util.ByteArrayDataSource;
+import jakarta.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.stereotype.Service;
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
+import org.json.JSONObject;
+
+import jakarta.mail.internet.MimeMessage;
+import java.io.ByteArrayOutputStream;
+import java.time.LocalDateTime;
+import java.util.Date;
+import java.util.List;
+
+@Service
+<span class="fc" id="L37">public class DonationServiceImpl implements DonationService {</span>
+
+    @Autowired
+    private DonationRepository donationRepository;
+
+    @Autowired
+    private JavaMailSender javaMailSender;
+
+    private static final String KEY_ID = &quot;rzp_test_SahHHcqfDLxNc9&quot;;
+    private static final String KEY_SECRET = &quot;6U69PBnxMGffotooyDPcF5rK&quot;;
+
+    @Override
+    @Transactional
+    public Donation saveDonation(Donation donation) {
+<span class="fc" id="L51">        donation.setId(null);</span>
+
+        // Encryption logic...
+<span class="pc bpc" id="L54" title="1 of 4 branches missed.">        if (donation.getAdharCard() != null &amp;&amp; !donation.getAdharCard().isBlank()) {</span>
+<span class="fc" id="L55">            String raw = donation.getAdharCard().trim();</span>
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">            if (!raw.matches(&quot;^\\d{12}$&quot;)) throw new RuntimeException(&quot;Aadhaar must be 12 digits&quot;);</span>
+<span class="fc" id="L57">            donation.setAdharCard(AESUtil.encrypt(raw));</span>
+        }
+        // PAN logic...
+<span class="pc bpc" id="L60" title="1 of 4 branches missed.">        if (donation.getPanNumber() != null &amp;&amp; !donation.getPanNumber().isBlank()) {</span>
+<span class="fc" id="L61">            String rawPan = donation.getPanNumber().trim().toUpperCase();</span>
+<span class="fc" id="L62">            donation.setPanNumber(AESUtil.encrypt(rawPan));</span>
+        }
+
+<span class="fc" id="L65">        donation.setPaymentDate(LocalDateTime.now());</span>
+        
+        // Save to DB
+<span class="fc" id="L68">        Donation savedDonation = donationRepository.save(donation);</span>
+        
+        // 🔥 CRITICAL: Call the email method here!
+        // We create a copy for the email so we can decrypt values for the PDF
+        try {
+<span class="fc" id="L73">            Donation forReceipt = new Donation();</span>
+            // Copy values manually or use BeanUtils
+<span class="fc" id="L75">            forReceipt.setName(savedDonation.getName());</span>
+<span class="fc" id="L76">            forReceipt.setEmail(savedDonation.getEmail());</span>
+<span class="fc" id="L77">            forReceipt.setMobile(savedDonation.getMobile());</span>
+<span class="fc" id="L78">            forReceipt.setDonationAmount(savedDonation.getDonationAmount());</span>
+<span class="fc" id="L79">            forReceipt.setOrderId(savedDonation.getOrderId());</span>
+<span class="fc" id="L80">            forReceipt.setPaymentId(savedDonation.getPaymentId());</span>
+<span class="fc" id="L81">            forReceipt.setStatus(savedDonation.getStatus());</span>
+
+            // Call the email sender
+<span class="fc" id="L84">            sendReceiptEmail(forReceipt);</span>
+<span class="nc" id="L85">        } catch (Exception e) {</span>
+<span class="nc" id="L86">            System.err.println(&quot;Database saved, but email failed: &quot; + e.getMessage());</span>
+<span class="fc" id="L87">        }</span>
+
+<span class="fc" id="L89">        return savedDonation;</span>
+    }
+    @Override
+    public List&lt;Donation&gt; getAllDonations() {
+<span class="fc" id="L93">        return donationRepository.findAll();</span>
+    }
+
+    @Override
+    public String createOrder(double amount) {
+        try {
+<span class="fc" id="L99">            RazorpayClient client = new RazorpayClient(KEY_ID, KEY_SECRET);</span>
+<span class="fc" id="L100">            JSONObject options = new JSONObject();</span>
+<span class="fc" id="L101">            options.put(&quot;amount&quot;, (int) (amount * 100));</span>
+<span class="fc" id="L102">            options.put(&quot;currency&quot;, &quot;INR&quot;);</span>
+<span class="fc" id="L103">            options.put(&quot;receipt&quot;, &quot;txn_&quot; + System.currentTimeMillis());</span>
+
+<span class="fc" id="L105">            Order order = client.orders.create(options);</span>
+<span class="fc" id="L106">            return order.toString();</span>
+<span class="nc" id="L107">        } catch (Exception e) {</span>
+<span class="nc" id="L108">            e.printStackTrace();</span>
+<span class="nc" id="L109">            return &quot;{\&quot;error\&quot;:\&quot;Order creation failed\&quot;}&quot;;</span>
+        }
+    }
+
+ // Inside DonationServiceImpl.java
+
+    private void sendReceiptEmail(Donation donation) {
+        try {
+            // 1. Generate PDF attachment
+<span class="fc" id="L118">            byte[] pdfBytes = generateReceiptPdf(donation);</span>
+
+            // 2. Prepare Email
+<span class="fc" id="L121">            MimeMessage message = javaMailSender.createMimeMessage();</span>
+<span class="fc" id="L122">            MimeMessageHelper helper = new MimeMessageHelper(message, true, &quot;UTF-8&quot;);</span>
+
+<span class="fc" id="L124">            helper.setTo(donation.getEmail());</span>
+<span class="pc bpc" id="L125" title="1 of 2 branches missed.">            helper.setSubject(&quot;Jevdaya Donation Receipt - &quot; + (donation.getPaymentId() != null ? donation.getPaymentId() : &quot;Offline&quot;));</span>
+
+            // 3. GET HTML FROM UTILITY CLASS (This is the professional way)
+<span class="fc" id="L128">            String htmlContent = EmailTemplateUtil.getReceiptHtml(donation);</span>
+            
+            // Set 'true' to indicate this is an HTML email
+<span class="fc" id="L131">            helper.setText(htmlContent, true);</span>
+
+            // 4. Add PDF as attachment
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">            String fileName = &quot;Receipt_&quot; + (donation.getPaymentId() != null ? donation.getPaymentId() : donation.getId()) + &quot;.pdf&quot;;</span>
+<span class="fc" id="L135">            helper.addAttachment(fileName, new ByteArrayDataSource(pdfBytes, &quot;application/pdf&quot;));</span>
+
+            // 5. Send
+<span class="fc" id="L138">            javaMailSender.send(message);</span>
+<span class="fc" id="L139">            System.out.println(&quot;Receipt Email Sent Successfully to: &quot; + donation.getEmail());</span>
+
+<span class="fc" id="L141">        } catch (Exception e) {</span>
+<span class="fc" id="L142">            System.err.println(&quot;Error sending receipt email: &quot; + e.getMessage());</span>
+<span class="fc" id="L143">            e.printStackTrace();</span>
+<span class="fc" id="L144">        }</span>
+<span class="fc" id="L145">    }</span>
+
+    @Override
+    public byte[] generateReceiptPdf(Donation donation) {
+<span class="fc" id="L149">        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {</span>
+<span class="fc" id="L150">            Document document = new Document();</span>
+<span class="fc" id="L151">            PdfWriter.getInstance(document, baos);</span>
+<span class="fc" id="L152">            document.open();</span>
+
+<span class="fc" id="L154">            BaseColor redColor = new BaseColor(255, 0, 0);</span>
+<span class="fc" id="L155">            Font redFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, redColor);</span>
+<span class="fc" id="L156">            Font redTitleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, redColor);</span>
+<span class="fc" id="L157">            Font blackFont = FontFactory.getFont(FontFactory.HELVETICA, 11);</span>
+<span class="fc" id="L158">            Font blackBoldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11);</span>
+<span class="fc" id="L159">            Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 8);</span>
+            
+<span class="pc bpc" id="L161" title="1 of 2 branches missed.">            String dateStr = donation.getPaymentDate() != null ? </span>
+<span class="pc" id="L162">                donation.getPaymentDate().toLocalDate().toString() : &quot;N/A&quot;;</span>
+
+            // Title
+<span class="fc" id="L165">            Paragraph title = new Paragraph(&quot;Payment Receipt&quot;, redTitleFont);</span>
+<span class="fc" id="L166">            title.setAlignment(Element.ALIGN_CENTER);</span>
+<span class="fc" id="L167">            document.add(title);</span>
+            
+            // Hindi Address
+<span class="fc" id="L170">            Paragraph hindiAddress = new Paragraph(&quot;बीतराग, सेक. २४, प्लाट नंबर ६, निगडी प्राधिकरण, निगडी, पुणे - ४११०४४&quot;, redFont);</span>
+<span class="fc" id="L171">            hindiAddress.setAlignment(Element.ALIGN_CENTER);</span>
+<span class="fc" id="L172">            document.add(hindiAddress);</span>
+            
+            // Register Info
+<span class="fc" id="L175">            Paragraph registerInfo = new Paragraph(&quot;रजिस्टर नंबर : महा. ३७०/२०१४/पुणे @ visit us on: www.jeevdaya.net&quot;, blackFont);</span>
+<span class="fc" id="L176">            registerInfo.setAlignment(Element.ALIGN_CENTER);</span>
+<span class="fc" id="L177">            document.add(registerInfo);</span>
+            
+<span class="fc" id="L179">            document.add(new Paragraph(&quot; &quot;));</span>
+            
+            // 80G Registration Table
+<span class="fc" id="L182">            PdfPTable regTable = new PdfPTable(3);</span>
+<span class="fc" id="L183">            regTable.setWidthPercentage(100);</span>
+<span class="fc" id="L184">            regTable.setSpacingBefore(5);</span>
+<span class="fc" id="L185">            regTable.setSpacingAfter(5);</span>
+            
+<span class="fc" id="L187">            PdfPCell cell1 = new PdfPCell(new Phrase(&quot;आयकर अधिनियम कि धारा 80G के अंतर्गत रजिस्टर्ड&quot;, smallFont));</span>
+<span class="fc" id="L188">            cell1.setPadding(5);</span>
+<span class="fc" id="L189">            regTable.addCell(cell1);</span>
+            
+<span class="fc" id="L191">            PdfPCell cell2 = new PdfPCell(new Phrase(&quot;DI No. AAA TS 1209 HE 2021901\nUR No. AAA TS 1209 HE 202191&quot;, smallFont));</span>
+<span class="fc" id="L192">            cell2.setPadding(5);</span>
+<span class="fc" id="L193">            regTable.addCell(cell2);</span>
+            
+<span class="fc" id="L195">            PdfPCell cell3 = new PdfPCell(new Phrase(&quot;DI No. AAA TS 1209 HF 2021701\nUR No. AAA TS 1209 HF 202171&quot;, smallFont));</span>
+<span class="fc" id="L196">            cell3.setPadding(5);</span>
+<span class="fc" id="L197">            regTable.addCell(cell3);</span>
+            
+<span class="fc" id="L199">            document.add(regTable);</span>
+            
+<span class="fc" id="L201">            document.add(new Paragraph(&quot; &quot;));</span>
+            
+            // Receipt No &amp; Date
+<span class="fc" id="L204">            Paragraph meta = new Paragraph();</span>
+<span class="fc" id="L205">            Chunk receiptNoLabel = new Chunk(&quot;Receipt no: &quot;, redFont);</span>
+<span class="fc" id="L206">            Chunk receiptNoValue = new Chunk(&quot;JIV&quot; + donation.getId(), blackBoldFont);</span>
+<span class="fc" id="L207">            Chunk dateLabel = new Chunk(&quot;                                          Date: &quot;, redFont);</span>
+<span class="fc" id="L208">            Chunk dateValue = new Chunk(dateStr, blackBoldFont);</span>
+<span class="fc" id="L209">            meta.add(receiptNoLabel);</span>
+<span class="fc" id="L210">            meta.add(receiptNoValue);</span>
+<span class="fc" id="L211">            meta.add(dateLabel);</span>
+<span class="fc" id="L212">            meta.add(dateValue);</span>
+<span class="fc" id="L213">            document.add(meta);</span>
+            
+            // Separator line
+<span class="fc" id="L216">            Paragraph line = new Paragraph(&quot;______________________________________________________________________________&quot;);</span>
+<span class="fc" id="L217">            document.add(line);</span>
+            
+<span class="fc" id="L219">            document.add(new Paragraph(&quot; &quot;));</span>
+            
+            // Received with thanks from
+<span class="fc" id="L222">            Paragraph receivedFrom = new Paragraph();</span>
+<span class="fc" id="L223">            receivedFrom.add(new Chunk(&quot;Received with thanks from: &quot;, redFont));</span>
+<span class="pc bpc" id="L224" title="1 of 2 branches missed.">            receivedFrom.add(new Chunk(donation.getName() != null ? donation.getName() : &quot;N/A&quot;, blackFont));</span>
+<span class="fc" id="L225">            document.add(receivedFrom);</span>
+            
+            // Address &amp; Cell
+<span class="fc" id="L228">            Paragraph addressCell = new Paragraph();</span>
+<span class="fc" id="L229">            addressCell.add(new Chunk(&quot;Address: &quot;, redFont));</span>
+<span class="fc bfc" id="L230" title="All 2 branches covered.">            addressCell.add(new Chunk(donation.getAddress() != null ? donation.getAddress() : &quot;N/A&quot;, blackFont));</span>
+<span class="fc" id="L231">            addressCell.add(new Chunk(&quot;                             Cell: &quot;, redFont));</span>
+<span class="fc bfc" id="L232" title="All 2 branches covered.">            addressCell.add(new Chunk(donation.getMobile() != null ? donation.getMobile() : &quot;N/A&quot;, blackFont));</span>
+<span class="fc" id="L233">            document.add(addressCell);</span>
+            
+<span class="fc" id="L235">            document.add(new Paragraph(&quot; &quot;));</span>
+            
+            // Sum of Rupees
+<span class="fc" id="L238">            Paragraph sumRupees = new Paragraph();</span>
+<span class="fc" id="L239">            sumRupees.add(new Chunk(&quot;the sum of Rupees: &quot;, redFont));</span>
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">            sumRupees.add(new Chunk(donation.getDonationAmount() != null ? donation.getDonationAmount() + &quot; Only&quot; : &quot;0 Only&quot;, blackFont));</span>
+<span class="fc" id="L241">            document.add(sumRupees);</span>
+            
+            // Payment details
+<span class="fc" id="L244">            Paragraph paymentDetails = new Paragraph();</span>
+<span class="fc" id="L245">            paymentDetails.add(new Chunk(&quot;by: &quot;, redFont));</span>
+<span class="pc bpc" id="L246" title="1 of 2 branches missed.">            paymentDetails.add(new Chunk(donation.getPaymentMode() != null ? donation.getPaymentMode() : &quot;N/A&quot;, blackFont));</span>
+<span class="fc" id="L247">            paymentDetails.add(new Chunk(&quot;  Txn. No.: &quot;, redFont));</span>
+<span class="pc bpc" id="L248" title="1 of 2 branches missed.">            paymentDetails.add(new Chunk(donation.getPaymentId() != null ? donation.getPaymentId() : </span>
+<span class="pc bpc" id="L249" title="1 of 2 branches missed.">                (donation.getReferenceNumber() != null ? donation.getReferenceNumber() : &quot;N/A&quot;), blackFont));</span>
+<span class="fc" id="L250">            paymentDetails.add(new Chunk(&quot;   dated: &quot;, redFont));</span>
+<span class="fc" id="L251">            paymentDetails.add(new Chunk(dateStr, blackFont));</span>
+<span class="fc" id="L252">            document.add(paymentDetails);</span>
+            
+<span class="fc" id="L254">            document.add(new Paragraph(&quot; &quot;));</span>
+            
+            // Amount Box
+<span class="fc" id="L257">            PdfPTable amtTable = new PdfPTable(2);</span>
+<span class="fc" id="L258">            amtTable.setTotalWidth(220);</span>
+<span class="fc" id="L259">            amtTable.setLockedWidth(true);</span>
+<span class="fc" id="L260">            amtTable.setHorizontalAlignment(Element.ALIGN_CENTER);</span>
+            
+<span class="fc" id="L262">            PdfPCell rupeeCell = new PdfPCell(new Phrase(&quot;₹:&quot;, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, redColor)));</span>
+<span class="fc" id="L263">            rupeeCell.setHorizontalAlignment(Element.ALIGN_CENTER);</span>
+<span class="fc" id="L264">            rupeeCell.setPadding(10);</span>
+<span class="fc" id="L265">            amtTable.addCell(rupeeCell);</span>
+            
+<span class="fc" id="L267">            PdfPCell amountCell = new PdfPCell(new Phrase(</span>
+<span class="pc bpc" id="L268" title="1 of 2 branches missed.">                donation.getDonationAmount() != null ? donation.getDonationAmount().toString() : &quot;0&quot;, </span>
+<span class="fc" id="L269">                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16)));</span>
+<span class="fc" id="L270">            amountCell.setHorizontalAlignment(Element.ALIGN_CENTER);</span>
+<span class="fc" id="L271">            amountCell.setPadding(10);</span>
+<span class="fc" id="L272">            amtTable.addCell(amountCell);</span>
+<span class="fc" id="L273">            document.add(amtTable);</span>
+            
+<span class="fc" id="L275">            document.add(new Paragraph(&quot; &quot;));</span>
+            
+            // Footer
+<span class="fc" id="L278">            Paragraph footer = new Paragraph(&quot;Payment Receipt.&quot;, redFont);</span>
+<span class="fc" id="L279">            footer.setAlignment(Element.ALIGN_CENTER);</span>
+<span class="fc" id="L280">            footer.setSpacingBefore(10);</span>
+<span class="fc" id="L281">            document.add(footer);</span>
+
+<span class="fc" id="L283">            document.close();</span>
+<span class="fc" id="L284">            return baos.toByteArray();</span>
+<span class="nc" id="L285">        } catch (Exception e) { </span>
+<span class="nc" id="L286">            throw new RuntimeException(e); </span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

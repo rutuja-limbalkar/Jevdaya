@@ -3,9 +3,9 @@ package com.jevdaya.Entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
-@Entity
+//@Entity
 @Data
-//@Table(name = "contact_messages")
+
 public class Contact {
 
     @Id

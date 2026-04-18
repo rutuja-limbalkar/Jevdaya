@@ -18,10 +18,11 @@ import java.util.stream.Collectors;
 @Component
 public class JwtUtil {
 
-    private static final SecretKey SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS512);
+	// This is a fixed 64-character (512-bit) secret key
+	private static final String SECRET_STRING = "JeevdayaAdminPanelSecretKey2026_Secure_Fixed_String_For_HS512_Auth";
+	private static final SecretKey SECRET_KEY = Keys.hmacShaKeyFor(SECRET_STRING.getBytes());
     private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 10; // 10 hours
 
-    // Generate Token
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
 
@@ -41,7 +42,6 @@ public class JwtUtil {
                 .compact();
     }
 
-    // Extract Email 
     public String extractEmail(String token) {
         return Jwts.parser()
                 .verifyWith(SECRET_KEY)
@@ -51,40 +51,35 @@ public class JwtUtil {
                 .getSubject();
     }
 
-    // Validate Token
     public boolean validateToken(String token) {
         try {
-            Jwts.parser()
-                .verifyWith(SECRET_KEY)
-                .build()
-                .parseSignedClaims(token);
+            Jwts.parser().verifyWith(SECRET_KEY).build().parseSignedClaims(token);
             return true;
         } catch (Exception e) {
             return false;
         }
     }
 
-    // ✅ FIXED extractRoles - This is the only change needed
     @SuppressWarnings("unchecked")
     public Set<String> extractRoles(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(SECRET_KEY)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(SECRET_KEY)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
 
-        // JJWT returns ArrayList, so we safely convert it to Set
-        Object rolesObj = claims.get("roles");
+            Object rolesObj = claims.get("roles");
 
-        if (rolesObj instanceof List) {
-            List<String> rolesList = (List<String>) rolesObj;
-            return rolesList.stream().collect(Collectors.toSet());
+            if (rolesObj instanceof List) {
+                return ((List<String>) rolesObj).stream().collect(Collectors.toSet());
+            }
+            if (rolesObj instanceof Set) {
+                return (Set<String>) rolesObj;
+            }
+            return Set.of();
+        } catch (Exception e) {
+            return Set.of();
         }
-
-        if (rolesObj instanceof Set) {
-            return (Set<String>) rolesObj;
-        }
-
-        return Set.of(); // return empty set if nothing found
     }
 }

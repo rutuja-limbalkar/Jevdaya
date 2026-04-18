@@ -41,11 +41,12 @@ public class User {
         joinColumns = @JoinColumn(name = &quot;user_id&quot;),
         inverseJoinColumns = @JoinColumn(name = &quot;role_id&quot;)
     )
+    
     private Set&lt;Role&gt; roles = new HashSet&lt;&gt;();
 
     // Helper method
     public void addRole(Role role) {
-<span class="fc" id="L48">        this.roles.add(role);</span>
-<span class="fc" id="L49">    }</span>
+<span class="fc" id="L49">        this.roles.add(role);</span>
+<span class="fc" id="L50">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

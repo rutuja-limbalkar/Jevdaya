@@ -1,6 +1,9 @@
 package com.jevdaya.serviceImpl;
 import java.util.List;
-import java.util.Optional;import org.springframework.beans.factory.annotation.Autowired;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;import com.jevday.util.AESUtil;
 import com.jevdaya.UserDTO;
@@ -126,28 +129,41 @@ return new ApiResponse("User Registered Successfully", true);}
 public List<UserDTO> getAllUsers() {
     return repo.findAll()
             .stream()
-            .map(u -> new UserDTO(u.getName(), u.getEmail()))
+            .map(u -> {
+                // Convert the Set<Role> to a comma-separated String
+                String rolesString = u.getRoles().stream()
+                        .map(Role::getName)
+                        .collect(Collectors.joining(", "));
+                
+                // Ensure your UserDTO has a 3-argument constructor: Name, Email, Role
+                return new UserDTO(u.getName(), u.getEmail(), rolesString);
+            })
             .toList();
 }
-}
-// Removed safeDecryptEquals() as it is no longer needed with new approach}//        //  PHONE NUMBER VALIDATION (NEW - Replaced PAN & Aadhaar)
-//        if (user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
-//            return new ApiResponse("Phone number is required", false);
-//        }
-//
-//        String phone = user.getPhoneNumber().trim();
-//
-//        if (!phone.matches("^[6-9]\\d{9}$")) {
-//            return new ApiResponse("Invalid phone number. Must be 10 digits starting with 6,7,8 or 9", false);
-//        }
-//
-//        //  Duplicate phone check
-//        if (repo.existsByPhoneNumber(phone)) {
-//            return new ApiResponse("Phone number already exists", false);
-//        }
-//
-//        // Set validated & cleaned values
-//        user.setName(name);
-//        user.setEmail(email);
-//        user.setPhoneNumber(phone);   // Set clean phone number
+@Transactional
+@Override
+public ApiResponse assignRole(AssignRoleRequestDTO request) {
+    // 1. Find the User
+    Optional<User> userOpt = repo.findByEmail(request.getEmail());
+    if (userOpt.isEmpty()) {
+        return new ApiResponse("User not found with email: " + request.getEmail(), false);
+    }
+    User user = userOpt.get();
 
+    // 2. Find the New Role
+    Optional<Role> roleOpt = roleRepository.findByName(request.getRoleName());
+    if (roleOpt.isEmpty()) {
+        return new ApiResponse("Role " + request.getRoleName() + " does not exist", false);
+    }
+    Role newRole = roleOpt.get();
+
+    // 3. CORE CHANGE: Clear existing roles to "Switch" the role
+    // This allows you to demote an Admin to User or promote a Manager to Admin
+    user.getRoles().clear(); 
+    user.addRole(newRole);
+
+    repo.save(user);
+
+    return new ApiResponse("User " + user.getName() + " is now assigned as " + request.getRoleName(), true);
+}
+}

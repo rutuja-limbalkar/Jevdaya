@@ -12,16 +12,19 @@ import com.jevdaya.repo.UserRepository;
 import com.jevdaya.service.AuthService;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-import java.util.Set;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
-<span class="fc" id="L24">public class AuthServiceImpl implements AuthService {</span>
+<span class="fc" id="L27">public class AuthServiceImpl implements AuthService {</span>
 
     @Autowired
     private UserRepository userRepository;
@@ -33,68 +36,158 @@ import java.util.stream.Collectors;
     private RoleRepository roleRepository;
 
     @Autowired
-    private JwtUtil jwtUtil;               // Injected here
+    private JwtUtil jwtUtil;
 
+    @Autowired
+    private JavaMailSender mailSender;   // ← Add this
+
+    // In-memory OTP storage (email -&gt; OTP + Expiry). Good for development.
+    // For production, use Redis or a proper Otp entity in database.
+<span class="fc" id="L46">    private final Map&lt;String, OtpData&gt; otpStorage = new ConcurrentHashMap&lt;&gt;();</span>
+
+    private static class OtpData {
+        String otp;
+        LocalDateTime expiry;
+
+<span class="nc" id="L52">        OtpData(String otp, LocalDateTime expiry) {</span>
+<span class="nc" id="L53">            this.otp = otp;</span>
+<span class="nc" id="L54">            this.expiry = expiry;</span>
+<span class="nc" id="L55">        }</span>
+    }
+
+    // ==================== Original Methods (Unchanged) ====================
     @Override
     public LoginResponseDTO login(LoginRequestDTO request) {
-<span class="fc" id="L40">        Optional&lt;User&gt; userOpt = userRepository.findByEmail(request.getEmail());</span>
+<span class="fc" id="L61">        Optional&lt;User&gt; userOpt = userRepository.findByEmail(request.getEmail());</span>
 
-<span class="fc bfc" id="L42" title="All 2 branches covered.">        if (userOpt.isEmpty()) {</span>
-<span class="fc" id="L43">            return new LoginResponseDTO(&quot;User not found&quot;, null, null, null, null);</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (userOpt.isEmpty()) {</span>
+<span class="fc" id="L64">            return new LoginResponseDTO(&quot;User not found&quot;, null, null, null, null);</span>
         }
 
-<span class="fc" id="L46">        User user = userOpt.get();</span>
+<span class="fc" id="L67">        User user = userOpt.get();</span>
 
-<span class="fc bfc" id="L48" title="All 2 branches covered.">        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {</span>
-<span class="fc" id="L49">            return new LoginResponseDTO(&quot;Invalid password&quot;, null, null, null, null);</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {</span>
+<span class="fc" id="L70">            return new LoginResponseDTO(&quot;Invalid password&quot;, null, null, null, null);</span>
         }
 
-<span class="fc" id="L52">        String token = jwtUtil.generateToken(user);</span>
+<span class="fc" id="L73">        String token = jwtUtil.generateToken(user);</span>
 
-<span class="fc" id="L54">        Set&lt;String&gt; roles = user.getRoles().stream()</span>
-<span class="fc" id="L55">                .map(Role::getName)</span>
-<span class="fc" id="L56">                .collect(Collectors.toSet());</span>
+<span class="fc" id="L75">        Set&lt;String&gt; roles = user.getRoles().stream()</span>
+<span class="fc" id="L76">                .map(Role::getName)</span>
+<span class="fc" id="L77">                .collect(Collectors.toSet());</span>
 
-<span class="fc" id="L58">        return new LoginResponseDTO(</span>
+<span class="fc" id="L79">        return new LoginResponseDTO(</span>
                 &quot;Login Successful&quot;,
-<span class="fc" id="L60">                user.getEmail(),</span>
-<span class="fc" id="L61">                user.getName(),</span>
+<span class="fc" id="L81">                user.getEmail(),</span>
+<span class="fc" id="L82">                user.getName(),</span>
                 token,
                 roles
         );
     }
-    
+
     @Transactional
     @Override
     public ApiResponse assignRole(AssignRoleRequestDTO request) {
-        // Your original assignRole code (kept unchanged)
-<span class="pc bpc" id="L71" title="2 of 4 branches missed.">        if (request.getEmail() == null || request.getRoleName() == null || </span>
-<span class="pc bpc" id="L72" title="1 of 4 branches missed.">            request.getEmail().isBlank() || request.getRoleName().isBlank()) {</span>
-<span class="fc" id="L73">            return new ApiResponse(&quot;Email and roleName are required&quot;, false);</span>
+<span class="pc bpc" id="L91" title="2 of 4 branches missed.">        if (request.getEmail() == null || request.getRoleName() == null ||</span>
+<span class="pc bpc" id="L92" title="1 of 4 branches missed.">            request.getEmail().isBlank() || request.getRoleName().isBlank()) {</span>
+<span class="fc" id="L93">            return new ApiResponse(&quot;Email and roleName are required&quot;, false);</span>
         }
 
-<span class="fc" id="L76">        Optional&lt;User&gt; userOpt = userRepository.findByEmail(request.getEmail().trim());</span>
-<span class="fc bfc" id="L77" title="All 2 branches covered.">        if (userOpt.isEmpty()) {</span>
-<span class="fc" id="L78">            return new ApiResponse(&quot;User not found with email: &quot; + request.getEmail(), false);</span>
+<span class="fc" id="L96">        Optional&lt;User&gt; userOpt = userRepository.findByEmail(request.getEmail().trim());</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        if (userOpt.isEmpty()) {</span>
+<span class="fc" id="L98">            return new ApiResponse(&quot;User not found with email: &quot; + request.getEmail(), false);</span>
         }
 
-<span class="fc" id="L81">        User user = userOpt.get();</span>
+<span class="fc" id="L101">        User user = userOpt.get();</span>
 
-<span class="fc" id="L83">        Optional&lt;Role&gt; roleOpt = roleRepository.findByName(request.getRoleName().trim());</span>
-<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (roleOpt.isEmpty()) {</span>
-<span class="fc" id="L85">            return new ApiResponse(&quot;Role not found: &quot; + request.getRoleName(), false);</span>
+<span class="fc" id="L103">        Optional&lt;Role&gt; roleOpt = roleRepository.findByName(request.getRoleName().trim());</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        if (roleOpt.isEmpty()) {</span>
+<span class="fc" id="L105">            return new ApiResponse(&quot;Role not found: &quot; + request.getRoleName(), false);</span>
         }
 
-<span class="fc" id="L88">        Role role = roleOpt.get();</span>
+<span class="fc" id="L108">        Role role = roleOpt.get();</span>
 
-<span class="fc bfc" id="L90" title="All 2 branches covered.">        if (user.getRoles().contains(role)) {</span>
-<span class="fc" id="L91">            return new ApiResponse(&quot;User already has role: &quot; + request.getRoleName(), false);</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">        if (user.getRoles().contains(role)) {</span>
+<span class="fc" id="L111">            return new ApiResponse(&quot;User already has role: &quot; + request.getRoleName(), false);</span>
         }
 
-<span class="fc" id="L94">        user.addRole(role);</span>
-<span class="fc" id="L95">        userRepository.save(user);</span>
+<span class="fc" id="L114">        user.addRole(role);</span>
+<span class="fc" id="L115">        userRepository.save(user);</span>
 
-<span class="fc" id="L97">        return new ApiResponse(&quot;Role '&quot; + request.getRoleName() + &quot;' assigned successfully to user&quot;, true);</span>
+<span class="fc" id="L117">        return new ApiResponse(&quot;Role '&quot; + request.getRoleName() + &quot;' assigned successfully to user&quot;, true);</span>
     }
+
+    // ==================== New Forgot Password Methods ====================
+
+    @Override
+    public void sendResetOTP(String email) {
+<span class="nc" id="L124">        Optional&lt;User&gt; userOpt = userRepository.findByEmail(email);</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (userOpt.isEmpty()) {</span>
+<span class="nc" id="L126">            throw new RuntimeException(&quot;No account found with this email&quot;);</span>
+        }
+
+        // Generate 6-digit OTP
+<span class="nc" id="L130">        String otp = String.format(&quot;%06d&quot;, new Random().nextInt(999999));</span>
+
+        // Store with 10 minutes expiry
+<span class="nc" id="L133">        LocalDateTime expiry = LocalDateTime.now().plusMinutes(10);</span>
+<span class="nc" id="L134">        otpStorage.put(email, new OtpData(otp, expiry));</span>
+
+        // Send Email
+        try {
+<span class="nc" id="L138">            SimpleMailMessage message = new SimpleMailMessage();</span>
+<span class="nc" id="L139">            message.setTo(email);</span>
+<span class="nc" id="L140">            message.setSubject(&quot;Jevdaya - Password Reset OTP&quot;);</span>
+<span class="nc" id="L141">            message.setText(&quot;Dear User,\n\nYour OTP for password reset is: &quot; + otp +</span>
+                    &quot;\n\nThis OTP is valid for 10 minutes.\n\nIf you didn't request this, please ignore this email.&quot;);
+
+<span class="nc" id="L144">            mailSender.send(message);</span>
+<span class="nc" id="L145">        } catch (Exception e) {</span>
+<span class="nc" id="L146">            throw new RuntimeException(&quot;Failed to send OTP email. Please try again later.&quot;);</span>
+<span class="nc" id="L147">        }</span>
+<span class="nc" id="L148">    }</span>
+
+    @Override
+    public boolean verifyOTP(String email, String otp) {
+<span class="nc" id="L152">        OtpData data = otpStorage.get(email);</span>
+
+<span class="nc bnc" id="L154" title="All 2 branches missed.">        if (data == null) {</span>
+<span class="nc" id="L155">            return false;</span>
+        }
+
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        if (LocalDateTime.now().isAfter(data.expiry)) {</span>
+<span class="nc" id="L159">            otpStorage.remove(email); // Clean expired OTP</span>
+<span class="nc" id="L160">            return false;</span>
+        }
+
+<span class="nc bnc" id="L163" title="All 2 branches missed.">        if (!data.otp.equals(otp)) {</span>
+<span class="nc" id="L164">            return false;</span>
+        }
+
+        // OTP is valid - keep it for reset step (or you can remove here if you want one-time use)
+<span class="nc" id="L168">        return true;</span>
+    }
+
+    @Override
+    public void resetPassword(String email, String newPassword) {
+<span class="nc" id="L173">        Optional&lt;User&gt; userOpt = userRepository.findByEmail(email);</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">        if (userOpt.isEmpty()) {</span>
+<span class="nc" id="L175">            throw new RuntimeException(&quot;User not found&quot;);</span>
+        }
+
+<span class="nc" id="L178">        User user = userOpt.get();</span>
+
+        // Optional: Verify OTP was used recently (extra security)
+<span class="nc bnc" id="L181" title="All 2 branches missed.">        if (!otpStorage.containsKey(email)) {</span>
+<span class="nc" id="L182">            throw new RuntimeException(&quot;OTP verification required before resetting password&quot;);</span>
+        }
+
+        // Update password
+<span class="nc" id="L186">        user.setPassword(passwordEncoder.encode(newPassword));</span>
+<span class="nc" id="L187">        userRepository.save(user);</span>
+
+        // Clean up OTP after successful reset
+<span class="nc" id="L190">        otpStorage.remove(email);</span>
+<span class="nc" id="L191">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -18,30 +18,30 @@ import java.util.stream.Collectors;
 @Component
 <span class="fc" id="L19">public class JwtUtil {</span>
 
-<span class="fc" id="L21">    private static final SecretKey SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS512);</span>
+	// This is a fixed 64-character (512-bit) secret key
+	private static final String SECRET_STRING = &quot;JeevdayaAdminPanelSecretKey2026_Secure_Fixed_String_For_HS512_Auth&quot;;
+<span class="fc" id="L23">	private static final SecretKey SECRET_KEY = Keys.hmacShaKeyFor(SECRET_STRING.getBytes());</span>
     private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 10; // 10 hours
 
-    // Generate Token
     public String generateToken(User user) {
-<span class="fc" id="L26">        Map&lt;String, Object&gt; claims = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L27">        Map&lt;String, Object&gt; claims = new HashMap&lt;&gt;();</span>
 
-<span class="fc" id="L28">        Set&lt;String&gt; roles = user.getRoles().stream()</span>
-<span class="fc" id="L29">                .map(Role::getName)</span>
-<span class="fc" id="L30">                .collect(Collectors.toSet());</span>
+<span class="fc" id="L29">        Set&lt;String&gt; roles = user.getRoles().stream()</span>
+<span class="fc" id="L30">                .map(Role::getName)</span>
+<span class="fc" id="L31">                .collect(Collectors.toSet());</span>
 
-<span class="fc" id="L32">        claims.put(&quot;roles&quot;, roles);</span>
-<span class="fc" id="L33">        claims.put(&quot;name&quot;, user.getName());</span>
+<span class="fc" id="L33">        claims.put(&quot;roles&quot;, roles);</span>
+<span class="fc" id="L34">        claims.put(&quot;name&quot;, user.getName());</span>
 
-<span class="fc" id="L35">        return Jwts.builder()</span>
-<span class="fc" id="L36">                .claims(claims)</span>
-<span class="fc" id="L37">                .subject(user.getEmail())</span>
-<span class="fc" id="L38">                .issuedAt(new Date())</span>
-<span class="fc" id="L39">                .expiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))</span>
-<span class="fc" id="L40">                .signWith(SECRET_KEY)</span>
-<span class="fc" id="L41">                .compact();</span>
+<span class="fc" id="L36">        return Jwts.builder()</span>
+<span class="fc" id="L37">                .claims(claims)</span>
+<span class="fc" id="L38">                .subject(user.getEmail())</span>
+<span class="fc" id="L39">                .issuedAt(new Date())</span>
+<span class="fc" id="L40">                .expiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))</span>
+<span class="fc" id="L41">                .signWith(SECRET_KEY)</span>
+<span class="fc" id="L42">                .compact();</span>
     }
 
-    // Extract Email 
     public String extractEmail(String token) {
 <span class="fc" id="L46">        return Jwts.parser()</span>
 <span class="fc" id="L47">                .verifyWith(SECRET_KEY)</span>
@@ -51,41 +51,36 @@ import java.util.stream.Collectors;
 <span class="fc" id="L51">                .getSubject();</span>
     }
 
-    // Validate Token
     public boolean validateToken(String token) {
         try {
-<span class="fc" id="L57">            Jwts.parser()</span>
-<span class="fc" id="L58">                .verifyWith(SECRET_KEY)</span>
-<span class="fc" id="L59">                .build()</span>
-<span class="fc" id="L60">                .parseSignedClaims(token);</span>
-<span class="fc" id="L61">            return true;</span>
-<span class="fc" id="L62">        } catch (Exception e) {</span>
-<span class="fc" id="L63">            return false;</span>
+<span class="fc" id="L56">            Jwts.parser().verifyWith(SECRET_KEY).build().parseSignedClaims(token);</span>
+<span class="fc" id="L57">            return true;</span>
+<span class="fc" id="L58">        } catch (Exception e) {</span>
+<span class="fc" id="L59">            return false;</span>
         }
     }
 
-    // ✅ FIXED extractRoles - This is the only change needed
     @SuppressWarnings(&quot;unchecked&quot;)
     public Set&lt;String&gt; extractRoles(String token) {
-<span class="fc" id="L70">        Claims claims = Jwts.parser()</span>
-<span class="fc" id="L71">                .verifyWith(SECRET_KEY)</span>
-<span class="fc" id="L72">                .build()</span>
-<span class="fc" id="L73">                .parseSignedClaims(token)</span>
-<span class="fc" id="L74">                .getPayload();</span>
+        try {
+<span class="fc" id="L66">            Claims claims = Jwts.parser()</span>
+<span class="fc" id="L67">                    .verifyWith(SECRET_KEY)</span>
+<span class="fc" id="L68">                    .build()</span>
+<span class="fc" id="L69">                    .parseSignedClaims(token)</span>
+<span class="fc" id="L70">                    .getPayload();</span>
 
-        // JJWT returns ArrayList, so we safely convert it to Set
-<span class="fc" id="L77">        Object rolesObj = claims.get(&quot;roles&quot;);</span>
+<span class="fc" id="L72">            Object rolesObj = claims.get(&quot;roles&quot;);</span>
 
-<span class="pc bpc" id="L79" title="1 of 2 branches missed.">        if (rolesObj instanceof List) {</span>
-<span class="fc" id="L80">            List&lt;String&gt; rolesList = (List&lt;String&gt;) rolesObj;</span>
-<span class="fc" id="L81">            return rolesList.stream().collect(Collectors.toSet());</span>
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">            if (rolesObj instanceof List) {</span>
+<span class="fc" id="L75">                return ((List&lt;String&gt;) rolesObj).stream().collect(Collectors.toSet());</span>
+            }
+<span class="nc bnc" id="L77" title="All 2 branches missed.">            if (rolesObj instanceof Set) {</span>
+<span class="nc" id="L78">                return (Set&lt;String&gt;) rolesObj;</span>
+            }
+<span class="nc" id="L80">            return Set.of();</span>
+<span class="nc" id="L81">        } catch (Exception e) {</span>
+<span class="nc" id="L82">            return Set.of();</span>
         }
-
-<span class="nc bnc" id="L84" title="All 2 branches missed.">        if (rolesObj instanceof Set) {</span>
-<span class="nc" id="L85">            return (Set&lt;String&gt;) rolesObj;</span>
-        }
-
-<span class="nc" id="L88">        return Set.of(); // return empty set if nothing found</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

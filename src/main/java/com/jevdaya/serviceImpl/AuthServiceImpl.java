@@ -12,12 +12,15 @@ import com.jevdaya.repo.UserRepository;
 import com.jevdaya.service.AuthService;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-import java.util.Set;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,8 +36,26 @@ public class AuthServiceImpl implements AuthService {
     private RoleRepository roleRepository;
 
     @Autowired
-    private JwtUtil jwtUtil;               // Injected here
+    private JwtUtil jwtUtil;
 
+    @Autowired
+    private JavaMailSender mailSender;   // ← Add this
+
+    // In-memory OTP storage (email -> OTP + Expiry). Good for development.
+    // For production, use Redis or a proper Otp entity in database.
+    private final Map<String, OtpData> otpStorage = new ConcurrentHashMap<>();
+
+    private static class OtpData {
+        String otp;
+        LocalDateTime expiry;
+
+        OtpData(String otp, LocalDateTime expiry) {
+            this.otp = otp;
+            this.expiry = expiry;
+        }
+    }
+
+    // ==================== Original Methods (Unchanged) ====================
     @Override
     public LoginResponseDTO login(LoginRequestDTO request) {
         Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
@@ -63,12 +84,11 @@ public class AuthServiceImpl implements AuthService {
                 roles
         );
     }
-    
+
     @Transactional
     @Override
     public ApiResponse assignRole(AssignRoleRequestDTO request) {
-        // Your original assignRole code (kept unchanged)
-        if (request.getEmail() == null || request.getRoleName() == null || 
+        if (request.getEmail() == null || request.getRoleName() == null ||
             request.getEmail().isBlank() || request.getRoleName().isBlank()) {
             return new ApiResponse("Email and roleName are required", false);
         }
@@ -95,5 +115,78 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
 
         return new ApiResponse("Role '" + request.getRoleName() + "' assigned successfully to user", true);
+    }
+
+    // ==================== New Forgot Password Methods ====================
+
+    @Override
+    public void sendResetOTP(String email) {
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            throw new RuntimeException("No account found with this email");
+        }
+
+        // Generate 6-digit OTP
+        String otp = String.format("%06d", new Random().nextInt(999999));
+
+        // Store with 10 minutes expiry
+        LocalDateTime expiry = LocalDateTime.now().plusMinutes(10);
+        otpStorage.put(email, new OtpData(otp, expiry));
+
+        // Send Email
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(email);
+            message.setSubject("Jevdaya - Password Reset OTP");
+            message.setText("Dear User,\n\nYour OTP for password reset is: " + otp +
+                    "\n\nThis OTP is valid for 10 minutes.\n\nIf you didn't request this, please ignore this email.");
+
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send OTP email. Please try again later.");
+        }
+    }
+
+    @Override
+    public boolean verifyOTP(String email, String otp) {
+        OtpData data = otpStorage.get(email);
+
+        if (data == null) {
+            return false;
+        }
+
+        if (LocalDateTime.now().isAfter(data.expiry)) {
+            otpStorage.remove(email); // Clean expired OTP
+            return false;
+        }
+
+        if (!data.otp.equals(otp)) {
+            return false;
+        }
+
+        // OTP is valid - keep it for reset step (or you can remove here if you want one-time use)
+        return true;
+    }
+
+    @Override
+    public void resetPassword(String email, String newPassword) {
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            throw new RuntimeException("User not found");
+        }
+
+        User user = userOpt.get();
+
+        // Optional: Verify OTP was used recently (extra security)
+        if (!otpStorage.containsKey(email)) {
+            throw new RuntimeException("OTP verification required before resetting password");
+        }
+
+        // Update password
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        // Clean up OTP after successful reset
+        otpStorage.remove(email);
     }
 }

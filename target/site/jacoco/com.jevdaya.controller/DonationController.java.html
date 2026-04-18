@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DonationController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Jevdaya</a> &gt; <a href="index.source.html" class="el_package">com.jevdaya.controller</a> &gt; <span class="el_source">DonationController.java</span></div><h1>DonationController.java</h1><pre class="source lang-java linenums">package com.jevdaya.controller;
+
+import com.jevdaya.Entity.Donation;
+import com.jevdaya.repo.DonationRepository;
+import com.jevdaya.service.DonationService;
+import com.jevday.util.AESUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping(&quot;/payment&quot;)
+@CrossOrigin(&quot;*&quot;)
+<span class="fc" id="L25">public class DonationController {</span>
+
+    @Autowired
+    private DonationService donationService;
+
+    @Autowired
+    private DonationRepository donationRepository;
+
+    @GetMapping(&quot;/donations&quot;)
+    public List&lt;Donation&gt; getAllDonations() {
+<span class="fc" id="L35">        return donationService.getAllDonations();</span>
+    }
+
+    @GetMapping(&quot;/my-profile&quot;)
+    public Map&lt;String, Object&gt; getMyProfile() {
+<span class="nc" id="L40">        String email = SecurityContextHolder.getContext().getAuthentication().getName();</span>
+
+<span class="nc bnc" id="L42" title="All 4 branches missed.">        if (email == null || email.equals(&quot;anonymousUser&quot;)) {</span>
+<span class="nc" id="L43">            throw new RuntimeException(&quot;User not authenticated&quot;);</span>
+        }
+
+<span class="nc" id="L46">        List&lt;Donation&gt; donations = donationRepository.findByEmail(email);</span>
+
+<span class="nc" id="L48">        Donation latest = donations.stream()</span>
+<span class="nc" id="L49">                .max(Comparator.comparing(Donation::getPaymentDate, Comparator.nullsLast(Comparator.naturalOrder())))</span>
+<span class="nc" id="L50">                .orElse(null);</span>
+
+<span class="nc" id="L52">        Map&lt;String, Object&gt; profile = new HashMap&lt;&gt;();</span>
+
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (latest != null) {</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">            profile.put(&quot;name&quot;, latest.getName() != null ? latest.getName() : &quot;&quot;);</span>
+<span class="nc" id="L56">            profile.put(&quot;email&quot;, latest.getEmail());</span>
+<span class="nc" id="L57">            profile.put(&quot;mobile&quot;, latest.getMobile());</span>
+            
+            // DECRYPTING FOR DISPLAY
+<span class="nc bnc" id="L60" title="All 4 branches missed.">            profile.put(&quot;adharCard&quot;, (latest.getAdharCard() != null &amp;&amp; !latest.getAdharCard().isEmpty()) </span>
+<span class="nc" id="L61">                    ? AESUtil.decrypt(latest.getAdharCard()) : &quot;&quot;);</span>
+<span class="nc bnc" id="L62" title="All 4 branches missed.">            profile.put(&quot;panNumber&quot;, (latest.getPanNumber() != null &amp;&amp; !latest.getPanNumber().isEmpty()) </span>
+<span class="nc" id="L63">                    ? AESUtil.decrypt(latest.getPanNumber()) : &quot;&quot;);</span>
+            
+<span class="nc bnc" id="L65" title="All 2 branches missed.">            profile.put(&quot;address&quot;, latest.getAddress() != null ? latest.getAddress() : &quot;&quot;);</span>
+        } else {
+<span class="nc" id="L67">            profile.put(&quot;name&quot;, &quot;Donor&quot;);</span>
+<span class="nc" id="L68">            profile.put(&quot;email&quot;, email);</span>
+<span class="nc" id="L69">            profile.put(&quot;mobile&quot;, &quot;&quot;);</span>
+<span class="nc" id="L70">            profile.put(&quot;adharCard&quot;, &quot;&quot;);</span>
+<span class="nc" id="L71">            profile.put(&quot;panNumber&quot;, &quot;&quot;);</span>
+<span class="nc" id="L72">            profile.put(&quot;address&quot;, &quot;&quot;);</span>
+        }
+
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        double total = donations.stream().mapToDouble(d -&gt; d.getDonationAmount() != null ? d.getDonationAmount() : 0.0).sum();</span>
+<span class="nc" id="L76">        profile.put(&quot;totalDonated&quot;, total);</span>
+<span class="nc" id="L77">        profile.put(&quot;donationCount&quot;, donations.size());</span>
+
+<span class="nc" id="L79">        return profile;</span>
+    }
+
+    @GetMapping(&quot;/my-donations&quot;)
+    public List&lt;Donation&gt; getMyDonations() {
+<span class="nc" id="L84">        String email = SecurityContextHolder.getContext().getAuthentication().getName();</span>
+
+<span class="nc bnc" id="L86" title="All 4 branches missed.">        if (email == null || email.equals(&quot;anonymousUser&quot;)) {</span>
+<span class="nc" id="L87">            throw new RuntimeException(&quot;User not authenticated&quot;);</span>
+        }
+
+<span class="nc" id="L90">        return donationRepository.findByEmail(email);</span>
+    }
+
+    @PostMapping(&quot;/create-order&quot;)
+    public String createOrder(@RequestParam double amount) {
+<span class="fc" id="L95">        return donationService.createOrder(amount);</span>
+    }
+
+    @PostMapping(&quot;/verify&quot;)
+    public String verifyPayment(@RequestBody Map&lt;String, Object&gt; data) {
+        try {
+<span class="fc" id="L101">            Donation donation = new Donation();</span>
+<span class="fc" id="L102">            donation.setName((String) data.get(&quot;customerName&quot;));</span>
+<span class="fc" id="L103">            donation.setEmail((String) data.get(&quot;customerEmail&quot;));</span>
+<span class="pc bpc" id="L104" title="1 of 2 branches missed.">            donation.setMobile(data.get(&quot;customerContact&quot;) != null ? data.get(&quot;customerContact&quot;).toString() : null);</span>
+
+<span class="fc" id="L106">            donation.setAdharCard((String) data.get(&quot;adharCard&quot;));</span>
+<span class="fc" id="L107">            donation.setPanNumber((String) data.get(&quot;panNumber&quot;));</span>
+            
+<span class="fc" id="L109">            donation.setAddress((String) data.get(&quot;address&quot;));</span>
+<span class="fc" id="L110">            donation.setDonationAmount(Double.valueOf(data.get(&quot;amount&quot;).toString()));</span>
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">            donation.setProductId(data.get(&quot;productId&quot;) != null ? Long.valueOf(data.get(&quot;productId&quot;).toString()) : null);</span>
+            
+<span class="fc" id="L113">            donation.setOrderId((String) data.get(&quot;orderId&quot;));</span>
+<span class="fc" id="L114">            donation.setPaymentId((String) data.get(&quot;paymentId&quot;));</span>
+<span class="fc" id="L115">            donation.setStatus(&quot;SUCCESS&quot;);</span>
+<span class="fc" id="L116">            donation.setPaymentDate(LocalDateTime.now());</span>
+<span class="fc" id="L117">            donation.setPaymentMode(&quot;RAZORPAY&quot;);</span>
+
+<span class="fc" id="L119">            donationService.saveDonation(donation);</span>
+
+<span class="fc" id="L121">            return &quot;Payment Verified Successfully&quot;;</span>
+<span class="nc" id="L122">        } catch (Exception e) {</span>
+<span class="nc" id="L123">            e.printStackTrace();</span>
+<span class="nc" id="L124">            return &quot;Error: &quot; + e.getMessage();</span>
+        }
+    }
+
+    @GetMapping(&quot;/admin/all-donations&quot;)
+    public List&lt;Donation&gt; getAllDonationsWithFilter(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+
+<span class="nc bnc" id="L133" title="All 4 branches missed.">        if (startDate != null &amp;&amp; endDate != null) {</span>
+<span class="nc" id="L134">            LocalDateTime start = LocalDateTime.parse(startDate + &quot;T00:00:00&quot;);</span>
+<span class="nc" id="L135">            LocalDateTime end = LocalDateTime.parse(endDate + &quot;T23:59:59&quot;);</span>
+<span class="nc" id="L136">            return donationRepository.findByPaymentDateBetweenOrderByPaymentDateDesc(start, end);</span>
+        }
+<span class="nc" id="L138">        return donationRepository.findAllByOrderByPaymentDateDesc();</span>
+    }
+
+    // ==================== FIXED RECEIPT DOWNLOAD WITH ROLE AUTH ====================
+    @GetMapping(&quot;/receipt/{id}&quot;)
+    public ResponseEntity&lt;byte[]&gt; getReceipt(@PathVariable Long id) {
+        try {
+<span class="nc" id="L145">            Donation donation = donationRepository.findById(id)</span>
+<span class="nc" id="L146">                    .orElseThrow(() -&gt; new RuntimeException(&quot;Donation not found with id: &quot; + id));</span>
+
+            // 1. Professional Authentication Check
+<span class="nc" id="L149">            Authentication auth = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="nc" id="L150">            String currentEmail = auth.getName();</span>
+            
+            // Check for specific authorities from your Jwt Filter
+<span class="nc" id="L153">            boolean isAdminOrManager = auth.getAuthorities().stream()</span>
+<span class="nc bnc" id="L154" title="All 4 branches missed.">                    .anyMatch(a -&gt; a.getAuthority().equals(&quot;ROLE_ADMIN&quot;) || a.getAuthority().equals(&quot;ROLE_MANAGER&quot;));</span>
+
+            // 2. Security Gate: Only allow the owner OR an Admin/Manager
+<span class="nc bnc" id="L157" title="All 4 branches missed.">            if (!isAdminOrManager &amp;&amp; !donation.getEmail().equals(currentEmail)) {</span>
+<span class="nc" id="L158">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
+            }
+
+            // 3. Decrypt for PDF Generation
+<span class="nc bnc" id="L162" title="All 4 branches missed.">            if (donation.getAdharCard() != null &amp;&amp; !donation.getAdharCard().isEmpty()) {</span>
+                try {
+<span class="nc" id="L164">                    donation.setAdharCard(AESUtil.decrypt(donation.getAdharCard()));</span>
+<span class="nc" id="L165">                } catch (Exception e) { donation.setAdharCard(&quot;Error Decrypting&quot;); }</span>
+            }
+<span class="nc bnc" id="L167" title="All 4 branches missed.">            if (donation.getPanNumber() != null &amp;&amp; !donation.getPanNumber().isEmpty()) {</span>
+                try {
+<span class="nc" id="L169">                    donation.setPanNumber(AESUtil.decrypt(donation.getPanNumber()));</span>
+<span class="nc" id="L170">                } catch (Exception e) { donation.setPanNumber(&quot;Error Decrypting&quot;); }</span>
+            }
+
+            // 4. Generate PDF using the new format method in Service
+<span class="nc" id="L174">            byte[] pdfBytes = donationService.generateReceiptPdf(donation);</span>
+
+<span class="nc" id="L176">            HttpHeaders headers = new HttpHeaders();</span>
+<span class="nc" id="L177">            headers.setContentType(MediaType.APPLICATION_PDF);</span>
+            // Professional filename attachment
+<span class="nc bnc" id="L179" title="All 2 branches missed.">            String filename = &quot;receipt_&quot; + (donation.getOrderId() != null ? donation.getOrderId() : donation.getId()) + &quot;.pdf&quot;;</span>
+<span class="nc" id="L180">            headers.set(HttpHeaders.CONTENT_DISPOSITION, &quot;attachment; filename=\&quot;&quot; + filename + &quot;\&quot;&quot;);</span>
+
+<span class="nc" id="L182">            return ResponseEntity.ok()</span>
+<span class="nc" id="L183">                    .headers(headers)</span>
+<span class="nc" id="L184">                    .body(pdfBytes);</span>
+
+<span class="nc" id="L186">        } catch (Exception e) {</span>
+<span class="nc" id="L187">            e.printStackTrace();</span>
+<span class="nc" id="L188">            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();</span>
+        }
+    }
+
+    @PostMapping(&quot;/admin/offline-donation&quot;)
+    public ResponseEntity&lt;String&gt; addOfflineDonation(@RequestBody Map&lt;String, Object&gt; data) {
+        try {
+<span class="nc" id="L195">            Donation donation = new Donation();</span>
+<span class="nc" id="L196">            donation.setName((String) data.get(&quot;name&quot;));</span>
+<span class="nc" id="L197">            donation.setEmail((String) data.get(&quot;email&quot;));</span>
+<span class="nc" id="L198">            donation.setMobile((String) data.get(&quot;mobile&quot;));</span>
+            
+<span class="nc" id="L200">            donation.setAdharCard((String) data.get(&quot;adharCard&quot;));</span>
+<span class="nc" id="L201">            donation.setPanNumber((String) data.get(&quot;panNumber&quot;));</span>
+            
+<span class="nc" id="L203">            donation.setAddress((String) data.get(&quot;address&quot;));</span>
+<span class="nc" id="L204">            donation.setDonationAmount(Double.valueOf(data.get(&quot;donationAmount&quot;).toString()));</span>
+<span class="nc bnc" id="L205" title="All 2 branches missed.">            donation.setProductId(data.get(&quot;productId&quot;) != null ? Long.valueOf(data.get(&quot;productId&quot;).toString()) : null);</span>
+<span class="nc" id="L206">            donation.setPaymentMode((String) data.get(&quot;paymentMode&quot;));</span>
+<span class="nc" id="L207">            donation.setReferenceNumber((String) data.get(&quot;referenceNumber&quot;));</span>
+<span class="nc" id="L208">            donation.setStatus(&quot;SUCCESS&quot;);</span>
+<span class="nc" id="L209">            donation.setPaymentDate(LocalDateTime.now());</span>
+<span class="nc" id="L210">            donation.setOffline(true);</span>
+
+<span class="nc" id="L212">            donationService.saveDonation(donation);</span>
+
+<span class="nc" id="L214">            return ResponseEntity.ok(&quot;Offline Donation Added Successfully&quot;);</span>
+<span class="nc" id="L215">        } catch (Exception e) {</span>
+<span class="nc" id="L216">            return ResponseEntity.badRequest().body(e.getMessage());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

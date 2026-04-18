@@ -6,6 +6,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -16,12 +17,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(UserDetailsService userDetailsService, 
+    public SecurityConfig(UserDetailsService userDetailsService,
                           JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -31,43 +33,22 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
-            .csrf(csrf -> csrf.disable())                    // Important for React frontend
+            .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            
             .authorizeHttpRequests(auth -> auth
-            		
-            		// Inside filterChain method
-            		.requestMatchers(HttpMethod.POST, "/gallery/**").permitAll() // Add this if saving is public
-            		.requestMatchers(HttpMethod.GET, "/gallery/**").permitAll()
-            		
-            		.requestMatchers("/payment/**").permitAll()  
-                // Public endpoints - no authentication needed
-            		 .requestMatchers(HttpMethod.POST,
-            			        "/auth/login", "/auth/register", "/auth/assign-role",
-            			        "/api/users/register", "/gaushala", "/api/gaushala"
-            			        
-            
-            			    ).permitAll()
+                // 1. PUBLIC (No login needed)
+                .requestMatchers(HttpMethod.POST, "/auth/login", "/auth/register", "/api/users/register").permitAll()
+                .requestMatchers(HttpMethod.GET, "/gallery/**", "/gaushala/**", "/api/pages/**", "/favicon.ico", "/error").permitAll()
+                .requestMatchers(HttpMethod.POST, "/payment/create-order", "/payment/verify", "/payment/offline").permitAll()
 
-
-            		 .requestMatchers(HttpMethod.GET,
-            				 "/gallery/**",
-            			        "/gaushala/**",
-            			        "/api/gaushala/**"
-            			            
-            			    ).permitAll()
-
-         
-
-                .requestMatchers(HttpMethod.PUT, "/gaushala/**", "/api/gaushala/**").permitAll()
-                .requestMatchers(HttpMethod.DELETE, "/gaushala/**", "/api/gaushala/**").permitAll()
-
-
+                // 2. RESTRICTED (Admin & Manager ONLY)
+                // This matches your request to keep users out
+             // Change this section
+                .requestMatchers(HttpMethod.GET, "/api/users/all").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
+                .requestMatchers("/payment/donations", "/payment/reports").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
+                // And update the receipt line too
+                .requestMatchers(HttpMethod.GET, "/payment/receipt/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_USER")
                 
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/error").permitAll()           // Important
-
-                // Everything else requires JWT
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
@@ -75,7 +56,6 @@ public class SecurityConfig {
 
         return http.build();
     }
-
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
